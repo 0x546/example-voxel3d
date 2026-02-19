@@ -7,20 +7,18 @@ import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.g3d.Environment;
-import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.math.Vector3;
-import ee.taltech.examplegame.game.VoxelWorld;
+import ee.taltech.examplegame.game.ProceduralVoxelWorld;
 import ee.taltech.examplegame.screen.overlay.VoxelHud;
 
 public class VoxelScreen extends ScreenAdapter {
 
     private final Game game;
     private final PerspectiveCamera camera;
-    private final ModelBatch modelBatch;
     private final Environment environment;
-    private final VoxelWorld voxelWorld;
+    private final ProceduralVoxelWorld voxelWorld;
     private final VoxelHud hud;
 
     private float pitch = 0;
@@ -31,7 +29,7 @@ public class VoxelScreen extends ScreenAdapter {
         this.game = game;
 
         camera = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        camera.position.set(16, 10, 16);
+        camera.position.set(0, 20, 12);
         camera.lookAt(0, 0, 0);
         camera.near = 0.1f;
         camera.far = 300f;
@@ -42,13 +40,11 @@ public class VoxelScreen extends ScreenAdapter {
 
         Gdx.input.setCursorCatched(true);
 
-        modelBatch = new ModelBatch();
-
         environment = new Environment();
         environment.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.4f, 0.4f, 0.4f, 1f));
         environment.add(new DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f));
 
-        voxelWorld = new VoxelWorld();
+        voxelWorld = new ProceduralVoxelWorld();
         hud = new VoxelHud();
     }
 
@@ -61,9 +57,7 @@ public class VoxelScreen extends ScreenAdapter {
         Gdx.gl.glClearColor(0.5f, 0.8f, 1f, 1f); // Sky blue
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
 
-        modelBatch.begin(camera);
-        voxelWorld.render(modelBatch, environment);
-        modelBatch.end();
+        voxelWorld.render(camera);
 
         hud.render();
 
@@ -71,6 +65,7 @@ public class VoxelScreen extends ScreenAdapter {
             if (Gdx.input.isCursorCatched()) {
                 Gdx.input.setCursorCatched(false);
             } else {
+                this.dispose();
                 game.setScreen(new TitleScreen(game));
             }
         }
@@ -82,25 +77,30 @@ public class VoxelScreen extends ScreenAdapter {
 
     private void handleInput(float delta) {
         float speed = 10f * delta;
-        if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT))
-            speed *= 2f;
+        if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) speed *= 2f;
 
-        Vector3 tmp = new Vector3();
+        // FIX: Calculate movement based on Flat YAW, ignoring PITCH.
+        // This prevents getting stuck when looking straight up or down.
+        float dx = (float) Math.sin(Math.toRadians(yaw)); // LibGDX sin takes radians
+        float dz = (float) Math.cos(Math.toRadians(yaw)); // LibGDX cos takes radians
+
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-            tmp.set(camera.direction).set(tmp.x, 0, tmp.z).nor().scl(speed);
-            camera.position.add(tmp);
+            camera.position.x -= dx * speed;
+            camera.position.z -= dz * speed;
         }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) {
-            tmp.set(camera.direction).set(tmp.x, 0, tmp.z).nor().scl(-speed);
-            camera.position.add(tmp);
+            camera.position.x += dx * speed;
+            camera.position.z += dz * speed;
         }
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
-            tmp.set(camera.direction).crs(camera.up).nor().scl(-speed);
-            camera.position.add(tmp);
+            // Strafe left (perpendicular to forward)
+            camera.position.x -= dz * speed;
+            camera.position.z += dx * speed;
         }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
-            tmp.set(camera.direction).crs(camera.up).nor().scl(speed);
-            camera.position.add(tmp);
+            // Strafe right
+            camera.position.x += dz * speed;
+            camera.position.z -= dx * speed;
         }
         if (Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
             camera.position.y += speed;
@@ -108,6 +108,8 @@ public class VoxelScreen extends ScreenAdapter {
         if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT)) {
             camera.position.y -= speed;
         }
+
+        camera.update();
     }
 
     private void updateCamera() {
@@ -144,7 +146,6 @@ public class VoxelScreen extends ScreenAdapter {
 
     @Override
     public void dispose() {
-        modelBatch.dispose();
         voxelWorld.dispose();
         hud.dispose();
     }

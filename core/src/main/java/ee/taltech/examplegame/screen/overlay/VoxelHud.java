@@ -12,6 +12,9 @@ public class VoxelHud {
     }
 
     public void render() {
+        shapeRenderer.getProjectionMatrix().setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        shapeRenderer.updateMatrices();
+
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         shapeRenderer.setColor(Color.WHITE);
 
