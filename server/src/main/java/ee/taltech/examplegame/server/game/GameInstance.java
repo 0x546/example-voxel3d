@@ -1,22 +1,25 @@
 package ee.taltech.examplegame.server.game;
 
-import com.esotericsoftware.kryonet.Connection;
-import com.esotericsoftware.minlog.Log;
-import ee.taltech.examplegame.server.game.object.Bullet;
-import ee.taltech.examplegame.server.game.object.Player;
-import ee.taltech.examplegame.server.listener.ServerListener;
-import ee.taltech.examplegame.shared.game.TerrainGenerator;
-import ee.taltech.examplegame.shared.game.TreeGenerator;
-import lombok.Getter;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.esotericsoftware.kryonet.Connection;
+import com.esotericsoftware.minlog.Log;
+
 import static constant.Constants.GAME_TICK_RATE;
 import static constant.Constants.PLAYER_COUNT_IN_GAME;
+import static constant.Constants.WATER_LEVEL;
+import static constant.Constants.WORLD_DEPTH;
+import static constant.Constants.WORLD_HEIGHT;
+import static constant.Constants.WORLD_WIDTH;
+import ee.taltech.examplegame.server.game.object.Player;
+import ee.taltech.examplegame.server.listener.ServerListener;
+import ee.taltech.examplegame.shared.game.TerrainGenerator;
+import ee.taltech.examplegame.shared.game.TreeGenerator;
+import lombok.Getter;
 
 /**
  * Represents the game logic and server-side management of the game instance.
@@ -33,20 +36,14 @@ import static constant.Constants.PLAYER_COUNT_IN_GAME;
 public class GameInstance extends Thread {
 
     private final ServerListener server;
-    private final BulletCollisionHandler collisionHandler = new BulletCollisionHandler();
     private final GameStateHandler gameStateHandler = new GameStateHandler();
 
     private final Set<Connection> connections = new HashSet<>(); // Avoid a connection (player) joining the game twice
     private final List<Player> players = new ArrayList<>();
-    private List<Bullet> bullets = new ArrayList<>();
 
     // Server-side world for physics
     @Getter
     private final int[][][] blocks;
-    private static final int W = 24;
-    private static final int H = 32;
-    private static final int D = 24;
-    private static final int WATER_LEVEL = 16;
 
     /**
      * Initializes the game instance.
@@ -59,18 +56,15 @@ public class GameInstance extends Thread {
         this.server = server;
 
         // Generate world
-        this.blocks = new int[W][H][D];
-        new TerrainGenerator(W, H, D, WATER_LEVEL).generate(blocks);
-        new TreeGenerator(W, H, D).growTrees(blocks);
+        this.blocks = new int[WORLD_WIDTH][WORLD_HEIGHT][WORLD_DEPTH];
+        new TerrainGenerator(WORLD_WIDTH, WORLD_HEIGHT, WORLD_DEPTH, WATER_LEVEL).generate(blocks);
+        new TreeGenerator(WORLD_WIDTH, WORLD_HEIGHT, WORLD_DEPTH).growTrees(blocks);
 
         Player newPlayer = new Player(firstConnection, this);
         players.add(newPlayer);
         connections.add(firstConnection);
     }
 
-    public void addBullet(Bullet bullet) {
-        this.bullets.add(bullet);
-    }
 
     /**
      * Check if the game has the required number of players to start.
@@ -128,16 +122,12 @@ public class GameInstance extends Thread {
         while (isGameRunning) {
             gameStateHandler.incrementGameTimeIfPlayersPresent();
 
-            // update bullets, check for collisions and remove out of bounds bullets
-            bullets.forEach(Bullet::update);
-            bullets = collisionHandler.handleCollisions(bullets, players);
-
             // update players (physics, movement)
             float delta = 1.0f / GAME_TICK_RATE;
             players.forEach(p -> p.update(delta, blocks));
 
             // construct gameStateMessage
-            var gameStateMessage = gameStateHandler.getGameStateMessage(players, bullets);
+            var gameStateMessage = gameStateHandler.getGameStateMessage(players);
             // send the state of current game to all connected clients
             connections.forEach(connection -> connection.sendUDP(gameStateMessage));
 

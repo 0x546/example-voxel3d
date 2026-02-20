@@ -8,7 +8,6 @@ import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import ee.taltech.examplegame.network.ServerConnection;
 import message.GameJoinMessage;
-
 import static ee.taltech.examplegame.component.ButtonComponents.getButton;
 
 /**
@@ -26,12 +25,9 @@ public class TitleScreen extends ScreenAdapter {
         Gdx.input.setInputProcessor(stage);
 
         // menu buttons
-        var startButton = getButton(20, "Start 2D", () -> {
+        var startButton = getButton(20, "Start Game", () -> {
             // send a message to the server that the player wants to join the game
             ServerConnection.getInstance().getClient().sendTCP(new GameJoinMessage());
-            game.setScreen(new GameScreen(game));
-        });
-        var startVoxelButton = getButton(20, "Voxel Demo", () -> {
             game.setScreen(new VoxelScreen(game));
         });
         var exitButton = getButton(20, "Exit", () -> Gdx.app.exit());
@@ -40,8 +36,6 @@ public class TitleScreen extends ScreenAdapter {
         var table = new Table();
         table.setFillParent(true);
         table.add(startButton).padBottom(20);
-        table.row();
-        table.add(startVoxelButton).padBottom(20);
         table.row();
         table.add(exitButton);
 

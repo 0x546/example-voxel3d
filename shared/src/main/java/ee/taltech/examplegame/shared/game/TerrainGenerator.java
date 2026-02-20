@@ -1,6 +1,7 @@
 package ee.taltech.examplegame.shared.game;
 
 import constant.BlockConstants;
+import static constant.Constants.DIRT_LAYER_THICKNESS;
 
 /**
  * Generates base terrain heights and fills a 3D blocks array with
@@ -12,7 +13,6 @@ public class TerrainGenerator {
 
     // Generation Settings
     private static final int BASE_HEIGHT = 16;
-    private static final int DIRT_LAYER_THICKNESS = 3;
 
     private final int width;
     private final int height;

@@ -1,11 +1,23 @@
 package ee.taltech.examplegame.game;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
-import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.utils.Disposable;
+
+import static constant.Colors.DIRT;
+import static constant.Colors.GRASS;
+import static constant.Colors.LEAVES;
+import static constant.Colors.PLAYER;
+import static constant.Colors.STONE;
+import static constant.Colors.WATER;
+import static constant.Colors.WOOD;
+import static constant.Constants.WATER_LEVEL;
+import static constant.Constants.WORLD_DEPTH;
+import static constant.Constants.WORLD_HEIGHT;
+import static constant.Constants.WORLD_WIDTH;
 import ee.taltech.examplegame.shared.game.TerrainGenerator;
 import ee.taltech.examplegame.shared.game.TreeGenerator;
 
@@ -16,26 +28,21 @@ import ee.taltech.examplegame.shared.game.TreeGenerator;
  */
 public class ProceduralVoxelWorld implements Disposable {
 
-    private static final int W = 24;
-    private static final int H = 32;
-    private static final int D = 24;
-    private static final int WATER_LEVEL = 16;
-
     private final Mesh opaqueMesh;
     private final Mesh waterMesh;
     private final ShaderProgram shader;
     private final int[][][] blocks;
 
     public ProceduralVoxelWorld() {
-        blocks = new int[W][H][D];
+        blocks = new int[WORLD_WIDTH][WORLD_HEIGHT][WORLD_DEPTH];
         // generate
-        TerrainGenerator tg = new TerrainGenerator(W, H, D, WATER_LEVEL);
+        TerrainGenerator tg = new TerrainGenerator(WORLD_WIDTH, WORLD_HEIGHT, WORLD_DEPTH, WATER_LEVEL);
         tg.generate(blocks);
-        TreeGenerator treeGen = new TreeGenerator(W, H, D);
+        TreeGenerator treeGen = new TreeGenerator(WORLD_WIDTH, WORLD_HEIGHT, WORLD_DEPTH);
         treeGen.growTrees(blocks);
 
         // build meshes
-        VoxelMeshBuilder builder = new VoxelMeshBuilder(W, H, D);
+        VoxelMeshBuilder builder = new VoxelMeshBuilder(WORLD_WIDTH, WORLD_HEIGHT, WORLD_DEPTH);
         VoxelMeshBuilder.MeshPair mp = builder.build(blocks);
         opaqueMesh = mp.opaqueMesh();
         waterMesh = mp.waterMesh();
@@ -64,13 +71,13 @@ public class ProceduralVoxelWorld implements Disposable {
         shader.setUniformf("u_lightDir", -0.5f, -1f, -0.3f);
 
         // base colors
-        shader.setUniformf("u_mat_grass", 0.22f, 0.7f, 0.2f);
-        shader.setUniformf("u_mat_dirt", 0.45f, 0.25f, 0.05f);
-        shader.setUniformf("u_mat_stone", 0.5f, 0.5f, 0.5f);
-        shader.setUniformf("u_mat_wood", 0.45f, 0.28f, 0.12f);
-        shader.setUniformf("u_mat_leaves", 0.15f, 0.6f, 0.15f);
-        shader.setUniformf("u_mat_water", 0.1f, 0.35f, 0.55f);
-        shader.setUniformf("u_mat_player", 0.8f, 0.2f, 0.2f);
+        shader.setUniformf("u_mat_grass", GRASS.r(), GRASS.g(), GRASS.b());
+        shader.setUniformf("u_mat_dirt", DIRT.r(), DIRT.g(), DIRT.b());
+        shader.setUniformf("u_mat_stone", STONE.r(), STONE.g(), STONE.b());
+        shader.setUniformf("u_mat_wood", WOOD.r(), WOOD.g(), WOOD.b());
+        shader.setUniformf("u_mat_leaves", LEAVES.r(), LEAVES.g(), LEAVES.b());
+        shader.setUniformf("u_mat_water", WATER.r(), WATER.g(), WATER.b());
+        shader.setUniformf("u_mat_player", PLAYER.r(), PLAYER.g(), PLAYER.b());
 
         // Render opaque geometry first
         if (opaqueMesh != null)

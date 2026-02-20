@@ -1,17 +1,25 @@
 package ee.taltech.examplegame.server.game.object;
 
 import com.esotericsoftware.kryonet.Connection;
+
 import constant.BlockConstants;
+import static constant.Constants.DAMPING;
+import static constant.Constants.GRAVITY;
+import static constant.Constants.JUMP_VELOCITY;
+import static constant.Constants.MOVE_SPEED;
+import static constant.Constants.PLAYER_HEIGHT;
+import static constant.Constants.PLAYER_LIVES_COUNT;
+import static constant.Constants.PLAYER_SPAWN_X;
+import static constant.Constants.PLAYER_SPAWN_Y;
+import static constant.Constants.PLAYER_SPAWN_Z;
+import static constant.Constants.PLAYER_WIDTH;
+import static constant.Constants.VOID_LEVEL;
 import ee.taltech.examplegame.server.game.GameInstance;
 import ee.taltech.examplegame.server.listener.PlayerMovementListener;
-import ee.taltech.examplegame.server.listener.PlayerShootingListener;
 import lombok.Getter;
 import lombok.Setter;
-import message.PlayerInputMessage;
-import message.dto.Direction;
+import message.PlayerMovementMessage;
 import message.dto.PlayerState;
-
-import static constant.Constants.PLAYER_LIVES_COUNT;
 
 /**
  * Server-side representation of a player in the game.
@@ -23,7 +31,6 @@ public class Player {
     private final Connection connection;
     // Keep track of listener objects for each player connection, so they can be disposed when the game ends
     private final PlayerMovementListener movementListener = new PlayerMovementListener(this);
-    private final PlayerShootingListener shootingListener = new PlayerShootingListener(this);
 
     private final int id;
     private final GameInstance game;
@@ -43,39 +50,26 @@ public class Player {
     private int lives = PLAYER_LIVES_COUNT;
 
     // Input state
-    private boolean up;
-    private boolean down;
-    private boolean left;
-    private boolean right;
+    private float moveForward;
+    private float moveSideways;
     private boolean jump;
     private boolean sneak;
-
-    // Physics constants
-    private static final float GRAVITY = 25f;
-    private static final float JUMP_VELOCITY = 10f;
-    private static final float MOVE_SPEED = 16f;
-    private static final float DAMPING = 0.9f;
-    private static final float PLAYER_WIDTH = 0.6f;
-    private static final float PLAYER_HEIGHT = 1.8f;
 
     public Player(Connection connection, GameInstance game) {
         this.connection = connection;
         this.id = connection.getID();
         this.game = game;
         this.connection.addListener(movementListener);
-        this.connection.addListener(shootingListener);
 
         // Spawn point
-        this.x = 12f;
-        this.y = 25f;
-        this.z = 12f;
+        this.x = PLAYER_SPAWN_X;
+        this.y = PLAYER_SPAWN_Y;
+        this.z = PLAYER_SPAWN_Z;
     }
 
-    public void handleInput(PlayerInputMessage message) {
-        this.up = message.isUp();
-        this.down = message.isDown();
-        this.left = message.isLeft();
-        this.right = message.isRight();
+    public void handleInput(PlayerMovementMessage message) {
+        this.moveForward = message.getMoveForward();
+        this.moveSideways = message.getMoveSideways();
         this.jump = message.isJump();
         this.sneak = message.isSneak();
         this.yaw = message.getYaw();
@@ -87,24 +81,16 @@ public class Player {
         float dx = (float) Math.sin(Math.toRadians(yaw));
         float dz = (float) Math.cos(Math.toRadians(yaw));
 
-        // Forward/Back
-        if (up) {
-            vx -= dx * MOVE_SPEED * delta;
-            vz -= dz * MOVE_SPEED * delta;
-        }
-        if (down) {
-            vx += dx * MOVE_SPEED * delta;
-            vz += dz * MOVE_SPEED * delta;
+        // Primary Movement axes
+        if (moveForward != 0) {
+            vx -= dx * moveForward * MOVE_SPEED * delta;
+            vz -= dz * moveForward * MOVE_SPEED * delta;
         }
 
-        // Strafe Left/Right
-        if (left) {
-            vx -= dz * MOVE_SPEED * delta;
-            vz += dx * MOVE_SPEED * delta;
-        }
-        if (right) {
-            vx += dz * MOVE_SPEED * delta;
-            vz -= dx * MOVE_SPEED * delta;
+        // Strafing axes
+        if (moveSideways != 0) {
+            vx -= dz * moveSideways * MOVE_SPEED * delta;
+            vz += dx * moveSideways * MOVE_SPEED * delta;
         }
 
         // Jump (only if on ground? For now, allow infinite jump for testing/flight if
@@ -150,7 +136,7 @@ public class Player {
         // Bounds check (keep in world)
         x = Math.clamp(x, 0, blocks.length - 1f);
         z = Math.clamp(z, 0, blocks[0][0].length - 1f);
-        if (y < -10) { // Void kill
+        if (y < VOID_LEVEL) { // Void kill
             lives = 0;
         }
     }
@@ -214,8 +200,8 @@ public class Player {
         return playerState;
     }
 
-    public void shoot(Direction direction) {
-        // Implement 3D shooting later
+    public void shoot() {
+        // TODO: Implement 3D shooting using yaw/pitch
     }
 
     public void decreaseLives() {
@@ -232,7 +218,6 @@ public class Player {
      */
     public void dispose() {
         connection.removeListener(movementListener);
-        connection.removeListener(shootingListener);
     }
 
 }

@@ -1,7 +1,14 @@
 package ee.taltech.examplegame.shared.game;
 
-import constant.BlockConstants;
 import java.util.Random;
+
+import constant.BlockConstants;
+import static constant.Constants.CLEAR_RADIUS;
+import static constant.Constants.LEAF_RADIUS;
+import static constant.Constants.LEAVES_START_OFFSET;
+import static constant.Constants.LEAVES_TOP_OFFSET;
+import static constant.Constants.PLANT_CHANCE;
+import static constant.Constants.TRUNK_HEIGHT;
 
 /**
  * Places simple trees into a blocks array.
@@ -12,14 +19,6 @@ public class TreeGenerator {
     private final int height;
     private final int depth;
     private final Random random = new Random(12345); // Fixed seed for deterministic trees
-
-    // Configuration
-    private static final int TRUNK_HEIGHT = 4;
-    private static final int LEAVES_START_OFFSET = 1;
-    private static final int LEAVES_TOP_OFFSET = 1;
-    private static final int LEAF_RADIUS = 2;
-    private static final int CLEAR_RADIUS = 2;
-    private static final float PLANT_CHANCE = 0.05f;
 
     public TreeGenerator(int width, int height, int depth) {
         this.width = width;

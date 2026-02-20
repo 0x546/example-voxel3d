@@ -1,11 +1,14 @@
 package ee.taltech.examplegame.game;
 
-import constant.BlockConstants;
 import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.VertexAttributes;
 import com.badlogic.gdx.utils.FloatArray;
 import com.badlogic.gdx.utils.ShortArray;
+
+import constant.BlockConstants;
+
+import static constant.Constants.*;
 
 /**
  * Builds LibGDX Meshes from a 3D voxel array.
@@ -14,8 +17,6 @@ import com.badlogic.gdx.utils.ShortArray;
 public class VoxelMeshBuilder {
 
     // --- Configuration ---
-    private static final int FLOATS_PER_VERTEX = 10; // Pos(3) + Norm(3) + UV(2) + Mat(2)
-    private static final int MAX_VERTICES = 32000; // Safe limit for Short indices
 
     private final int width;
     private final int height;
@@ -159,7 +160,7 @@ public class VoxelMeshBuilder {
                 return;
             }
 
-            float matEnc = matId / 255f;
+            float matEnc = matId / MAT_ID_ENCODING_FACTOR;
             float[] quad = face.verts;
             float[] normal = face.normal;
 

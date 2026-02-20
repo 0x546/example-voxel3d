@@ -1,62 +1,61 @@
 package ee.taltech.examplegame.game;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+
 import ee.taltech.examplegame.network.ServerConnection;
-import message.dto.Direction;
 import message.PlayerMovementMessage;
-import message.PlayerShootingMessage;
 
 /**
- * Listens for user input in the GameScreen regarding player movement and shooting,
- * forwards the corresponding messages to the server.
+ * Handles gathering user input and sending movement messages to the server.
+ * Optimizes network usage by only sending updates when the input state actually changes.
  */
 public class PlayerInputManager {
 
-    public void handleMovementInput() {
-        var movementMessage = new PlayerMovementMessage();
+    private float lastYaw = -1;
+    private float lastPitch = -1;
+    private float lastForward = 0;
+    private float lastSideways = 0;
+    private boolean lastJump = false;
+    private boolean lastSneak = false;
 
-        // detect key presses and send a movement message with the desired direction to the server
-        if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.A)) {
-            movementMessage.setDirection(Direction.LEFT);
-        } else if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.D)) {
-            movementMessage.setDirection(Direction.RIGHT);
-        } else if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.W)) {
-            movementMessage.setDirection(Direction.UP);
-        } else if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.S)) {
-            movementMessage.setDirection(Direction.DOWN);
+    // Small threshold for rotation changes to avoid spamming tiny mouse movements
+    private static final float ROTATION_THRESHOLD = 0.01f;
+
+    public void update(float yaw, float pitch) {
+        float moveForward = 0;
+        float moveSideways = 0;
+
+        if (Gdx.input.isKeyPressed(Input.Keys.W)) moveForward += 1;
+        if (Gdx.input.isKeyPressed(Input.Keys.S)) moveForward -= 1;
+        if (Gdx.input.isKeyPressed(Input.Keys.A)) moveSideways -= 1;
+        if (Gdx.input.isKeyPressed(Input.Keys.D)) moveSideways += 1;
+
+        boolean jump = Gdx.input.isKeyPressed(Input.Keys.SPACE);
+        boolean sneak = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT);
+
+        // Check if anything changed
+        boolean rotationChanged = Math.abs(yaw - lastYaw) > ROTATION_THRESHOLD || 
+                                 Math.abs(pitch - lastPitch) > ROTATION_THRESHOLD;
+        boolean movementChanged = moveForward != lastForward || 
+                                 moveSideways != lastSideways || 
+                                 jump != lastJump || 
+                                 sneak != lastSneak;
+
+        if (rotationChanged || movementChanged) {
+            PlayerMovementMessage message = new PlayerMovementMessage(
+                yaw, pitch, moveForward, moveSideways, jump, sneak
+            );
+            
+            ServerConnection.getInstance().getClient().sendUDP(message);
+
+            // Update last state
+            lastYaw = yaw;
+            lastPitch = pitch;
+            lastForward = moveForward;
+            lastSideways = moveSideways;
+            lastJump = jump;
+            lastSneak = sneak;
         }
-
-        // don't send anything if player is not moving
-        if (movementMessage.getDirection() == null) return;
-
-        // message is sent to the server
-        ServerConnection
-            .getInstance()
-            .getClient()
-            .sendUDP(movementMessage);  // UDP, because nothing bad happens when some messages don't reach the server
-    }
-
-    public void handleShootingInput() {
-        var shootingMessage = new PlayerShootingMessage();
-
-        // detect key presses and send shooting message to the server
-        if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.LEFT)) {
-            shootingMessage.setDirection(Direction.LEFT);
-        } else if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.RIGHT)) {
-            shootingMessage.setDirection(Direction.RIGHT);
-        } else if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.UP)) {
-            shootingMessage.setDirection(Direction.UP);
-        } else if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.DOWN)) {
-            shootingMessage.setDirection(Direction.DOWN);
-        }
-
-        // don't send anything if player is not shooting
-        if (shootingMessage.getDirection() == null) return;
-
-        // message is sent to the server
-        ServerConnection
-            .getInstance()
-            .getClient()
-            .sendUDP(shootingMessage);
     }
 }

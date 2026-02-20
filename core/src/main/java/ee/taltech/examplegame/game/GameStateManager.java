@@ -1,11 +1,14 @@
 package ee.taltech.examplegame.game;
 
+import java.util.ArrayList;
 import ee.taltech.examplegame.network.ServerConnection;
 import ee.taltech.examplegame.network.listener.GameStateMessageListener;
+import lombok.Getter;
+import lombok.Setter;
 import message.GameStateMessage;
 
-import java.util.ArrayList;
-
+@Setter
+@Getter
 public class GameStateManager {
 
     private GameStateMessage latestGameStateMessage;
@@ -27,16 +30,8 @@ public class GameStateManager {
         // instance ensures safe usage and avoids unnecessary null handling.
         latestGameStateMessage = new GameStateMessage();
         latestGameStateMessage.setPlayerStates(new ArrayList<>());
-        latestGameStateMessage.setBulletStates(new ArrayList<>());
         latestGameStateMessage.setGameTime(0);
         latestGameStateMessage.setAllPlayersHaveJoined(false);
     }
 
-    public GameStateMessage getLatestGameStateMessage() {
-        return latestGameStateMessage;
-    }
-
-    public void setLatestGameStateMessage(GameStateMessage gameStateMessage) {
-        latestGameStateMessage = gameStateMessage;
-    }
 }

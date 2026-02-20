@@ -7,18 +7,32 @@ import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.g3d.Environment;
+import com.badlogic.gdx.graphics.g3d.Model;
+import com.badlogic.gdx.graphics.g3d.ModelBatch;
+import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
-import com.badlogic.gdx.graphics.g3d.Model;
-import com.badlogic.gdx.graphics.g3d.ModelInstance;
-import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.math.Vector3;
+
+import static constant.Constants.CAMERA_FAR;
+import static constant.Constants.CAMERA_FOV;
+import static constant.Constants.CAMERA_NEAR;
+import static constant.Constants.DAMPING;
+import static constant.Constants.EYE_HEIGHT;
+import static constant.Constants.GRAVITY;
+import static constant.Constants.JUMP_VELOCITY;
+import static constant.Constants.MOUSE_SENSITIVITY;
+import static constant.Constants.MOVE_SPEED;
+import static constant.Constants.PLAYER_HEIGHT;
+import static constant.Constants.PLAYER_INTERPOLATION_SPEED;
+import static constant.Constants.PLAYER_SNAP_DISTANCE;
+import static constant.Constants.PLAYER_WIDTH;
 import ee.taltech.examplegame.game.GameStateManager;
-import ee.taltech.examplegame.network.ServerConnection;
+import ee.taltech.examplegame.game.PlayerInputManager;
 import ee.taltech.examplegame.game.ProceduralVoxelWorld;
+import ee.taltech.examplegame.network.ServerConnection;
 import ee.taltech.examplegame.screen.overlay.VoxelHud;
 import ee.taltech.examplegame.util.PlayerModelGenerator;
-import message.PlayerInputMessage;
 
 public class VoxelScreen extends ScreenAdapter {
 
@@ -29,6 +43,7 @@ public class VoxelScreen extends ScreenAdapter {
     private final VoxelHud hud;
 
     private final GameStateManager gameStateManager;
+    private final PlayerInputManager inputManager;
     private final ModelBatch modelBatch;
     private final Model playerModel;
     private final ModelInstance playerInstance; // Reused for rendering
@@ -36,7 +51,6 @@ public class VoxelScreen extends ScreenAdapter {
 
     private float pitch = 0;
     private float yaw = 0;
-    private static float mouseSensitivity = 0.2f;
 
     // Physics state
     private float vx;
@@ -44,23 +58,14 @@ public class VoxelScreen extends ScreenAdapter {
     private float vz;
     private boolean onGround = false;
 
-    // Physics constants (Must match Server Player.java)
-    private static final float GRAVITY = 25f;
-    private static final float JUMP_VELOCITY = 10f;
-    private static final float MOVE_SPEED = 16f;
-    private static final float DAMPING = 0.9f;
-    private static final float PLAYER_WIDTH = 0.6f;
-    private static final float PLAYER_HEIGHT = 1.8f;
-    private static final float EYE_HEIGHT = 1.6f; // Camera height from feet
-
     public VoxelScreen(Game game) {
         this.game = game;
 
-        camera = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        camera = new PerspectiveCamera(CAMERA_FOV, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         camera.position.set(0, 20, 12);
         camera.lookAt(0, 0, 0);
-        camera.near = 0.1f;
-        camera.far = 300f;
+        camera.near = CAMERA_NEAR;
+        camera.far = CAMERA_FAR;
         camera.update();
 
         yaw = -135f; // Initial direction
@@ -76,6 +81,7 @@ public class VoxelScreen extends ScreenAdapter {
         hud = new VoxelHud();
 
         gameStateManager = new GameStateManager();
+        inputManager = new PlayerInputManager();
         modelBatch = new ModelBatch();
 
         playerModel = PlayerModelGenerator.createPlayerModel();
@@ -86,7 +92,7 @@ public class VoxelScreen extends ScreenAdapter {
     public void render(float delta) {
         handleInput(delta);
         updatePhysics(delta);
-        sendInput(); // Send input to server
+        inputManager.update(yaw, pitch); // Send movement intention to server
         updateCamera();
 
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -102,9 +108,9 @@ public class VoxelScreen extends ScreenAdapter {
             int myId = ServerConnection.getInstance().getClient().getID();
             for (var state : playerStates) {
                 if (state.getId() == myId) {
-                    if (Math.abs(camera.position.x - state.getX()) > 5f
-                            || Math.abs(camera.position.z - state.getZ()) > 5f
-                            || Math.abs(camera.position.y - state.getY()) > 5f) {
+                    if (Math.abs(camera.position.x - state.getX()) > PLAYER_SNAP_DISTANCE
+                            || Math.abs(camera.position.z - state.getZ()) > PLAYER_SNAP_DISTANCE
+                            || Math.abs(camera.position.y - state.getY()) > PLAYER_SNAP_DISTANCE) {
                         camera.position.set(state.getX(), state.getY() + EYE_HEIGHT, state.getZ());
                     }
                     continue;
@@ -118,7 +124,7 @@ public class VoxelScreen extends ScreenAdapter {
                 }
 
                 Vector3 currentPos = playerPositions.get(state.getId());
-                currentPos.lerp(targetPos, 25f * delta);
+                currentPos.lerp(targetPos, PLAYER_INTERPOLATION_SPEED * delta);
 
                 playerInstance.transform.setToTranslation(currentPos);
                 playerInstance.transform.rotate(Vector3.Y, state.getYaw());
@@ -151,22 +157,14 @@ public class VoxelScreen extends ScreenAdapter {
         }
     }
 
-    private void sendInput() {
-        if (ServerConnection.getInstance().getClient().isConnected()) {
-            PlayerInputMessage message = new PlayerInputMessage();
-            message.setUp(Gdx.input.isKeyPressed(Input.Keys.W));
-            message.setDown(Gdx.input.isKeyPressed(Input.Keys.S));
-            message.setLeft(Gdx.input.isKeyPressed(Input.Keys.A));
-            message.setRight(Gdx.input.isKeyPressed(Input.Keys.D));
-            message.setJump(Gdx.input.isKeyPressed(Input.Keys.SPACE));
-            message.setSneak(Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT));
-            message.setYaw(yaw);
-            message.setPitch(pitch);
-            ServerConnection.getInstance().getClient().sendUDP(message);
-        }
-    }
 
     private void handleInput(float delta) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            Gdx.input.setCursorCatched(false);
+            game.setScreen(new TitleScreen(game));
+            return;
+        }
+
         // Apply forces based on input
         float dx = (float) Math.sin(Math.toRadians(yaw));
         float dz = (float) Math.cos(Math.toRadians(yaw));
@@ -300,8 +298,8 @@ public class VoxelScreen extends ScreenAdapter {
 
     private void updateCamera() {
         if (Gdx.input.isCursorCatched()) {
-            float deltaX = -Gdx.input.getDeltaX() * mouseSensitivity;
-            float deltaY = -Gdx.input.getDeltaY() * mouseSensitivity;
+            float deltaX = -Gdx.input.getDeltaX() * MOUSE_SENSITIVITY;
+            float deltaY = -Gdx.input.getDeltaY() * MOUSE_SENSITIVITY;
 
             yaw += deltaX;
             pitch += deltaY;
