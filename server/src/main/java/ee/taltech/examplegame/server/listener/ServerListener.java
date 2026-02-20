@@ -76,12 +76,12 @@ public class ServerListener extends Listener {
                 .filter(p -> p.getConnection().equals(connection))
                 .findFirst()
                 .ifPresent(p -> {
-                    p.setX(constant.Constants.PLAYER_SPAWN_X);
-                    p.setY(constant.Constants.PLAYER_SPAWN_Y);
-                    p.setZ(constant.Constants.PLAYER_SPAWN_Z);
-                    p.setVx(0);
-                    p.setVy(0);
-                    p.setVz(0);
+                    p.getPhysicsState().setX(constant.Constants.PLAYER_SPAWN_X);
+                    p.getPhysicsState().setY(constant.Constants.PLAYER_SPAWN_Y);
+                    p.getPhysicsState().setZ(constant.Constants.PLAYER_SPAWN_Z);
+                    p.getPhysicsState().setVx(0);
+                    p.getPhysicsState().setVy(0);
+                    p.getPhysicsState().setVz(0);
                 });
         }
 

@@ -16,31 +16,18 @@ import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.math.Vector3;
 
-import constant.BlockConstants;
 import static constant.Constants.CAMERA_FAR;
 import static constant.Constants.CAMERA_FOV;
 import static constant.Constants.CAMERA_NEAR;
-import static constant.Constants.DAMPING;
 import static constant.Constants.EYE_HEIGHT;
-import static constant.Constants.GRAVITY;
-import static constant.Constants.JUMP_VELOCITY;
 import static constant.Constants.MOUSE_SENSITIVITY;
-import static constant.Constants.MOVE_SPEED;
-import static constant.Constants.PLAYER_HEIGHT;
 import static constant.Constants.PLAYER_INTERPOLATION_SPEED;
 import static constant.Constants.PLAYER_SNAP_DISTANCE;
-import static constant.Constants.PLAYER_WIDTH;
-import static constant.Constants.SWIM_UP_SPEED;
-import static constant.Constants.WATER_DAMPING;
-import static constant.Constants.WATER_GRAVITY;
-import static constant.Constants.WATER_LEVEL;
-import static constant.Constants.WATER_MOVE_SPEED;
-import static constant.Constants.WATER_WAVE_AMPLITUDE;
-import static constant.Constants.WATER_WAVE_SPEED;
 import ee.taltech.examplegame.game.GameStateManager;
 import ee.taltech.examplegame.game.PlayerInputManager;
 import ee.taltech.examplegame.game.ProceduralVoxelWorld;
 import ee.taltech.examplegame.network.ServerConnection;
+import ee.taltech.examplegame.physics.VoxelPhysics;
 import ee.taltech.examplegame.screen.overlay.PauseOverlay;
 import ee.taltech.examplegame.screen.overlay.VoxelHud;
 import ee.taltech.examplegame.util.PlayerModelGenerator;
@@ -63,14 +50,11 @@ public class VoxelScreen extends ScreenAdapter {
     private final ModelInstance reusablePlayerInstance;
     private final Map<Integer, Vector3> playerPositions = new HashMap<>();
 
-    private float pitch = 0;
-    private float yaw = 0;
+    private float pitch;
+    private float yaw;
 
-    // Physics state
-    private float vx;
-    private float vy;
-    private float vz;
-    private boolean onGround = false;
+    private final VoxelPhysics.PhysicsState physicsState = new VoxelPhysics.PhysicsState();
+    private final VoxelPhysics.InputState inputState = new VoxelPhysics.InputState();
 
     public VoxelScreen(Game game) {
 
@@ -120,8 +104,7 @@ public class VoxelScreen extends ScreenAdapter {
         if (!paused) {
             // Local-only updates
             updateCamera();         // handles mouse-driven yaw/pitch & camera.direction
-            handleInput(delta);     // keyboard -> vx/vy/vz / jump
-            updatePhysics(delta);   // apply physics and update camera position
+            updatePhysics(delta);   // handles movement input, physics, and camera position
             inputManager.update(yaw, pitch); // send to server / networked state
             if (inputManager.isActionPressed()) {
                 Gdx.input.setCursorCatched(true);
@@ -185,174 +168,41 @@ public class VoxelScreen extends ScreenAdapter {
             if (pitch < -89f) pitch = -89f;
 
             camera.direction.set(0, 0, -1);
-            camera.direction.rotate(Vector3.Y, yaw);
+            camera.direction.rotate(Vector3.Y, inputState.getYaw());
 
             Vector3 side = camera.direction.cpy().crs(Vector3.Y).nor();
-            camera.direction.rotate(side, pitch);
+            camera.direction.rotate(side, inputState.getPitch());
 
             camera.up.set(0, 1, 0);
             camera.update();
         }
     }
 
-    private void handleInput(float delta) {
-        float dx = (float) Math.sin(Math.toRadians(yaw));
-        float dz = (float) Math.cos(Math.toRadians(yaw));
-
-        float f = inputManager.getMoveForward();
-        float s = inputManager.getMoveSideways();
-
-        float depth = getWaterDepth();
-        boolean inWater = depth > 0;
-        float speed = inWater ? WATER_MOVE_SPEED : MOVE_SPEED;
-
-        if (f != 0) {
-            vx -= dx * f * speed * delta;
-            vz -= dz * f * speed * delta;
-        }
-
-        if (s != 0) {
-            // Strafing
-            vx += dz * s * speed * delta;
-            vz -= dx * s * speed * delta;
-        }
-
-        if (inputManager.isJump()) {
-            if (inWater) {
-                vy += 20f * delta;
-                if (vy > SWIM_UP_SPEED) vy = SWIM_UP_SPEED;
-
-                if (isTouchingSolidBlock()) {
-                    vy = 0.5f * JUMP_VELOCITY;
-                }
-            } else if (onGround) {
-                vy = JUMP_VELOCITY;
-            }
-        }
-    }
-
-    // -------------------------
-    // Helper: physics + collision
-    // -------------------------
     private void updatePhysics(float delta) {
-        float depth = getWaterDepth();
-        boolean inWater = depth > 0;
+        // Position and velocity are kept in physicsState directly
+        physicsState.setX(camera.position.x);
+        physicsState.setY(camera.position.y - EYE_HEIGHT);
+        physicsState.setZ(camera.position.z);
 
-        // 1. Gravity (reduced in water for slow sinking)
-        vy -= (inWater ? WATER_GRAVITY : GRAVITY) * delta;
+        inputState.setMoveForward(inputManager.getMoveForward());
+        inputState.setMoveSideways(inputManager.getMoveSideways());
+        inputState.setJump(inputManager.isJump());
+        inputState.setYaw(yaw);
+        inputState.setPitch(pitch);
 
-        // Current feet position
-        float x = camera.position.x;
-        float y = camera.position.y - EYE_HEIGHT;
-        float z = camera.position.z;
+        VoxelPhysics.update(physicsState, inputState, delta, voxelWorld.getTime(), voxelWorld.getBlocks());
 
-        float nextX = x + vx * delta;
-        float nextY = y + vy * delta;
-        float nextZ = z + vz * delta;
-
-        int[][][] blocks = voxelWorld.getBlocks();
-
-        // X axis
-        if (checkCollision(nextX, y, z, blocks)) {
-            vx = 0;
-        } else {
-            x = nextX;
-        }
-
-        // Z axis
-        if (checkCollision(x, y, nextZ, blocks)) {
-            vz = 0;
-        } else {
-            z = nextZ;
-        }
-
-        // Y axis
-        if (checkCollision(x, nextY, z, blocks)) {
-            if (vy < 0) onGround = true;
-            vy = 0;
-        } else {
-            y = nextY;
-            onGround = false;
-        }
-
-        // Damping (stronger in water)
-        float damp = inWater ? WATER_DAMPING : DAMPING;
-        vx *= damp;
-        vz *= damp;
-        if (inWater) {
-            vy *= 0.92f; // vertical drag in water
-        }
-
-        // Bounds check
-        if (blocks != null) {
-            x = Math.clamp(x, 0, blocks.length - 1f);
-            z = Math.clamp(z, 0, blocks[0][0].length - 1f);
-        }
+        float resY = physicsState.getY();
 
         // Void / respawn (client-side visual)
-        if (y < -10) {
-            y = 30;
-            vy = 0;
+        if (resY < -10) {
+            resY = 30;
+            physicsState.setVy(0);
         }
 
-        // Update camera to follow feet + eye offset
-        camera.position.set(x, y + EYE_HEIGHT, z);
+        // Update camera
+        camera.position.set(physicsState.getX(), resY + EYE_HEIGHT, physicsState.getZ());
         camera.update();
-    }
-
-    private boolean checkCollision(float px, float py, float pz, int[][][] blocks) {
-        if (blocks == null) return false;
-
-        float minX = px - PLAYER_WIDTH / 2;
-        float maxX = px + PLAYER_WIDTH / 2;
-        float minY = py;
-        float maxY = py + PLAYER_HEIGHT;
-        float minZ = pz - PLAYER_WIDTH / 2;
-        float maxZ = pz + PLAYER_WIDTH / 2;
-
-        int startX = (int) Math.floor(minX);
-        int endX = (int) Math.floor(maxX);
-        int startY = (int) Math.floor(minY);
-        int endY = (int) Math.floor(maxY);
-        int startZ = (int) Math.floor(minZ);
-        int endZ = (int) Math.floor(maxZ);
-
-        for (int ix = startX; ix <= endX; ix++) {
-            for (int iy = startY; iy <= endY; iy++) {
-                for (int iz = startZ; iz <= endZ; iz++) {
-                    if (isSolid(ix, iy, iz, blocks)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean isTouchingSolidBlock() {
-        int[][][] blocks = voxelWorld.getBlocks();
-        if (blocks == null) return false;
-
-        float x = camera.position.x;
-        float y = camera.position.y - EYE_HEIGHT;
-        float z = camera.position.z;
-
-        float padding = 0.1f;
-        float checkRadius = PLAYER_WIDTH / 2 + padding;
-
-        return (isSolid((int)(x + checkRadius), (int)y, (int)z, blocks)
-            || isSolid((int)(x - checkRadius), (int)y, (int)z, blocks)
-            || isSolid((int)x, (int)y, (int)(z + checkRadius), blocks)
-            || isSolid((int)x, (int)y, (int)(z - checkRadius), blocks));
-    }
-
-    private boolean isSolid(int x, int y, int z, int[][][] blocks) {
-        if (x < 0 || x >= blocks.length || z < 0 || z >= blocks[0][0].length) return true;
-        if (y < 0) return true;
-        if (y >= blocks[0].length) return false;
-
-        int type = blocks[x][y][z];
-        return type != 0 && type != 6; // 0=Air, 6=Water
     }
 
     // -------------------------
@@ -378,9 +228,9 @@ public class VoxelScreen extends ScreenAdapter {
             if (distSq > PLAYER_SNAP_DISTANCE * PLAYER_SNAP_DISTANCE) {
                 // Snap to authoritative server position
                 camera.position.set(state.getX(), state.getY() + EYE_HEIGHT, state.getZ());
-                vx = state.getVx();
-                vy = state.getVy();
-                vz = state.getVz();
+                physicsState.setVx(state.getVx());
+                physicsState.setVy(state.getVy());
+                physicsState.setVz(state.getVz());
                 camera.update();
             } else if (distSq > 0.01f) {
                 // Soft correction
@@ -398,50 +248,7 @@ public class VoxelScreen extends ScreenAdapter {
         float cy = camera.position.y;
         float cz = camera.position.z;
 
-        if (isWaterBlock(cx, cy, cz)) {
-            float surfaceY = computeWaterSurfaceY(cx, cz);
-            return cy < surfaceY;
-        }
-        return false;
-    }
-
-    private float getWaterDepth() {
-        float cx = camera.position.x;
-        float fy = camera.position.y - EYE_HEIGHT;
-        float cz = camera.position.z;
-
-        if (isWaterBlock(cx, fy, cz)) {
-            float surfaceY = computeWaterSurfaceY(cx, cz);
-            return Math.max(0f, surfaceY - fy);
-        }
-        return 0f;
-    }
-
-    private boolean isWaterBlock(float x, float y, float z) {
-        int[][][] blocks = voxelWorld.getBlocks();
-        if (blocks == null) return false;
-
-        int bx = (int) Math.floor(x);
-        int by = (int) Math.floor(y);
-        int bz = (int) Math.floor(z);
-
-        if (bx < 0 || bx >= blocks.length ||
-            by < 0 || by >= blocks[0].length ||
-            bz < 0 || bz >= blocks[0][0].length)
-            return false;
-
-        return blocks[bx][by][bz] == BlockConstants.MAT_WATER;
-    }
-
-    private float computeWaterSurfaceY(float x, float z) {
-        float time = voxelWorld.getTime();
-        float t = time * WATER_WAVE_SPEED;
-
-        float w1 = (float) Math.sin(x * 1.8f + t) * WATER_WAVE_AMPLITUDE;
-        float w2 = (float) Math.sin(z * 2.3f + t * 0.7f + 1.3f) * WATER_WAVE_AMPLITUDE * 0.5f;
-        float w3 = (float) Math.sin((x + z) * 3.7f + t * 1.13f + 2.7f) * WATER_WAVE_AMPLITUDE * 0.3f;
-
-        return WATER_LEVEL - 0.12f + w1 + w2 + w3;
+        return VoxelPhysics.isUnderwater(cx, cy, cz, voxelWorld.getTime(), voxelWorld.getBlocks());
     }
 
     // -------------------------
