@@ -21,8 +21,6 @@ public class ServerConnection {
 
         // register classes that are sent over the network
         registerClasses(client.getKryo());
-
-        client.start();
     }
 
     public static ServerConnection getInstance() {
@@ -34,7 +32,9 @@ public class ServerConnection {
 
     public void connect() {
         try {
+            client.start();
             client.connect(5000, SERVER_IP, PORT_TCP, PORT_UDP);
+            client.sendTCP(new message.GameJoinMessage());
         } catch (Exception e) {
             Gdx.app.error("ServerConnection", "Failed to connect to server", e);
         }

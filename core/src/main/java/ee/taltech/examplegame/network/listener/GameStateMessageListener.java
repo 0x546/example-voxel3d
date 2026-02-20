@@ -12,7 +12,6 @@ public class GameStateMessageListener extends Listener {
 
     private final GameStateManager gameStateManager;
 
-
     public GameStateMessageListener(GameStateManager gameStateManager) {
         this.gameStateManager = gameStateManager;
     }
@@ -20,7 +19,7 @@ public class GameStateMessageListener extends Listener {
     /**
      * Processes received GameStateMessage objects.
      * @param connection Connection that sent the message.
-     * @param object Received object (in this case GameStateMessage).
+     * @param object     Received object (in this case GameStateMessage).
      */
     @Override
     public void received(Connection connection, Object object) {
@@ -29,6 +28,16 @@ public class GameStateMessageListener extends Listener {
         if (object instanceof GameStateMessage gameStateMessage) {
             // Update the game state
             gameStateManager.setLatestGameStateMessage(gameStateMessage);
+            gameStateMessage.getPlayerStates().forEach(playerState -> {
+                // Ignore our own player
+                if (playerState.getId() == connection.getID())
+                    return;
+
+                // Sync remote players
+                // In a real game, you would interpolate here
+                // For now, we need a way to access the remote players list in the client
+                // game/screen
+            });
         }
     }
 }

@@ -6,21 +6,15 @@ import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.utils.Disposable;
+import ee.taltech.examplegame.shared.game.TerrainGenerator;
+import ee.taltech.examplegame.shared.game.TreeGenerator;
 
 /**
- * High-level class that uses TerrainGenerator, TreeGenerator, VoxelMeshBuilder and ProceduralMaterials
- * to generate, mesh and render the voxel world with water and no grass under water.
+ * High-level class that uses shared TerrainGenerator and TreeGenerator,
+ * along with VoxelMeshBuilder logic to generate, mesh and render the voxel
+ * world.
  */
 public class ProceduralVoxelWorld implements Disposable {
-
-    // material IDs (shared across files)
-    public static final int MAT_AIR = 0;
-    public static final int MAT_GRASS = 1;
-    public static final int MAT_DIRT = 2;
-    public static final int MAT_STONE = 3;
-    public static final int MAT_WOOD = 4;
-    public static final int MAT_LEAVES = 5;
-    public static final int MAT_WATER = 6;
 
     private static final int W = 24;
     private static final int H = 32;
@@ -30,17 +24,18 @@ public class ProceduralVoxelWorld implements Disposable {
     private final Mesh opaqueMesh;
     private final Mesh waterMesh;
     private final ShaderProgram shader;
+    private final int[][][] blocks;
 
     public ProceduralVoxelWorld() {
-        int[][][] blocks = new int[W][H][D];
+        blocks = new int[W][H][D];
         // generate
-        TerrainGenerator tg = new TerrainGenerator(W,H,D,WATER_LEVEL);
+        TerrainGenerator tg = new TerrainGenerator(W, H, D, WATER_LEVEL);
         tg.generate(blocks);
-        TreeGenerator treeGen = new TreeGenerator(W,H,D);
+        TreeGenerator treeGen = new TreeGenerator(W, H, D);
         treeGen.growTrees(blocks);
 
         // build meshes
-        VoxelMeshBuilder builder = new VoxelMeshBuilder(W,H,D);
+        VoxelMeshBuilder builder = new VoxelMeshBuilder(W, H, D);
         VoxelMeshBuilder.MeshPair mp = builder.build(blocks);
         opaqueMesh = mp.opaqueMesh();
         waterMesh = mp.waterMesh();
@@ -51,6 +46,10 @@ public class ProceduralVoxelWorld implements Disposable {
         if (!shader.isCompiled()) {
             Gdx.app.error("Shader", shader.getLog());
         }
+    }
+
+    public int[][][] getBlocks() {
+        return blocks;
     }
 
     public void render(Camera camera) {
@@ -71,15 +70,16 @@ public class ProceduralVoxelWorld implements Disposable {
         shader.setUniformf("u_mat_wood", 0.45f, 0.28f, 0.12f);
         shader.setUniformf("u_mat_leaves", 0.15f, 0.6f, 0.15f);
         shader.setUniformf("u_mat_water", 0.1f, 0.35f, 0.55f);
+        shader.setUniformf("u_mat_player", 0.8f, 0.2f, 0.2f);
 
         // Render opaque geometry first
-        if (opaqueMesh != null) opaqueMesh.render(shader, GL20.GL_TRIANGLES);
+        if (opaqueMesh != null)
+            opaqueMesh.render(shader, GL20.GL_TRIANGLES);
 
         // Render water with blending after opaque
         if (waterMesh != null) {
             Gdx.gl.glEnable(GL20.GL_BLEND);
             Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-            // optionally reduce depth mask to allow nicer blending; for simplicity keep depth write on
             waterMesh.render(shader, GL20.GL_TRIANGLES);
             Gdx.gl.glDisable(GL20.GL_BLEND);
         }

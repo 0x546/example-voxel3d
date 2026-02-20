@@ -1,5 +1,6 @@
 package ee.taltech.examplegame.game;
 
+import constant.BlockConstants;
 import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.VertexAttributes;
@@ -14,7 +15,7 @@ public class VoxelMeshBuilder {
 
     // --- Configuration ---
     private static final int FLOATS_PER_VERTEX = 10; // Pos(3) + Norm(3) + UV(2) + Mat(2)
-    private static final int MAX_VERTICES = 32000;   // Safe limit for Short indices
+    private static final int MAX_VERTICES = 32000; // Safe limit for Short indices
 
     private final int width;
     private final int height;
@@ -48,7 +49,8 @@ public class VoxelMeshBuilder {
     }
 
     /**
-     * Face definitions with precomputed vertex positions (relative to voxel), normals and neighbor offsets.
+     * Face definitions with precomputed vertex positions (relative to voxel),
+     * normals and neighbor offsets.
      */
     private enum Face {
         TOP    (new int[] {0, 1, 0}, new float[] {0,1,1,  1,1,1,  1,1,0,  0,1,0}, new float[] {0,1,0}),
@@ -58,9 +60,9 @@ public class VoxelMeshBuilder {
         FRONT  (new int[] {0,0,1}, new float[] {1,0,1,  1,1,1,  0,1,1,  0,0,1}, new float[] {0,0,1}),
         BACK   (new int[] {0,0,-1}, new float[] {0,0,0,  0,1,0,  1,1,0,  1,0,0}, new float[] {0,0,-1});
 
-        final int[] offset;    // dx,dy,dz
-        final float[] verts;   // 4 * (x,y,z)
-        final float[] normal;  // (nx,ny,nz)
+        final int[] offset; // dx,dy,dz
+        final float[] verts; // 4 * (x,y,z)
+        final float[] normal; // (nx,ny,nz)
 
         Face(int[] offset, float[] verts, float[] normal) {
             this.offset = offset;
@@ -70,7 +72,8 @@ public class VoxelMeshBuilder {
     }
 
     /**
-     * Constructs meshes for opaque and water blocks. Iterates over all voxels and processes visible faces.
+     * Constructs meshes for opaque and water blocks. Iterates over all voxels and
+     * processes visible faces.
      */
     public MeshPair build(int[][][] blocks) {
         MeshBuffer opaqueBuffer = new MeshBuffer();
@@ -94,9 +97,10 @@ public class VoxelMeshBuilder {
      */
     private void processVoxel(BuildContext ctx, int x, int y, int z) {
         int mat = ctx.blocks[x][y][z];
-        if (mat == ProceduralVoxelWorld.MAT_AIR) return;
+        if (mat == BlockConstants.MAT_AIR)
+            return;
 
-        boolean selfIsWater = (mat == ProceduralVoxelWorld.MAT_WATER);
+        boolean selfIsWater = (mat == BlockConstants.MAT_WATER);
         MeshBuffer target = selfIsWater ? ctx.water : ctx.opaque;
 
         for (Face face : Face.values()) {
@@ -118,21 +122,23 @@ public class VoxelMeshBuilder {
         int nz = z + face.offset[2];
 
         // World boundary => visible
-        if (nx < 0 || nx >= width || ny < 0 || ny >= height || nz < 0 || nz >= depth) return true;
+        if (nx < 0 || nx >= width || ny < 0 || ny >= height || nz < 0 || nz >= depth)
+            return true;
 
         int nMat = blocks[nx][ny][nz];
 
         // Neighbor is air => visible
-        if (nMat == ProceduralVoxelWorld.MAT_AIR) return true;
+        if (nMat == BlockConstants.MAT_AIR)
+            return true;
 
-        boolean neighborIsWater = (nMat == ProceduralVoxelWorld.MAT_WATER);
+        boolean neighborIsWater = (nMat == BlockConstants.MAT_WATER);
 
         // Visible if different fluid/solid state (water vs non-water).
         return selfIsWater != neighborIsWater;
     }
 
     // ==================================================================================
-    //                                  MeshBuffer
+    // MeshBuffer
     // ==================================================================================
     private static class MeshBuffer {
         private final FloatArray verts = new FloatArray();
@@ -148,7 +154,8 @@ public class VoxelMeshBuilder {
             int startVertex = verts.size / FLOATS_PER_VERTEX;
 
             if (startVertex + 4 > MAX_VERTICES) {
-                System.err.println("[VoxelMeshBuilder] Vertex limit reached — skipping face at " + x + "," + y + "," + z);
+                System.err
+                        .println("[VoxelMeshBuilder] Vertex limit reached — skipping face at " + x + "," + y + "," + z);
                 return;
             }
 
@@ -158,9 +165,9 @@ public class VoxelMeshBuilder {
 
             for (int i = 0; i < 4; i++) {
                 // Position
-                verts.add(x + quad[i*3]);
-                verts.add(y + quad[i*3 + 1]);
-                verts.add(z + quad[i*3 + 2]);
+                verts.add(x + quad[i * 3]);
+                verts.add(y + quad[i * 3 + 1]);
+                verts.add(z + quad[i * 3 + 2]);
 
                 // Normal
                 verts.add(normal[0]);
@@ -168,8 +175,8 @@ public class VoxelMeshBuilder {
                 verts.add(normal[2]);
 
                 // UV
-                verts.add(STATIC_UVS[i*2]);
-                verts.add(STATIC_UVS[i*2 + 1]);
+                verts.add(STATIC_UVS[i * 2]);
+                verts.add(STATIC_UVS[i * 2 + 1]);
 
                 // Material
                 verts.add(matEnc);
@@ -191,19 +198,17 @@ public class VoxelMeshBuilder {
         public Mesh createMesh() {
             if (verts.size == 0) {
                 return new Mesh(true, 0, 0,
-                    new VertexAttribute(VertexAttributes.Usage.Position, 3, "a_position"),
-                    new VertexAttribute(VertexAttributes.Usage.Normal, 3, "a_normal"),
-                    new VertexAttribute(VertexAttributes.Usage.TextureCoordinates, 2, "a_texCoord0"),
-                    new VertexAttribute(VertexAttributes.Usage.TextureCoordinates, 2, "a_texCoord1")
-                );
+                        new VertexAttribute(VertexAttributes.Usage.Position, 3, "a_position"),
+                        new VertexAttribute(VertexAttributes.Usage.Normal, 3, "a_normal"),
+                        new VertexAttribute(VertexAttributes.Usage.TextureCoordinates, 2, "a_texCoord0"),
+                        new VertexAttribute(VertexAttributes.Usage.TextureCoordinates, 2, "a_texCoord1"));
             }
 
             Mesh mesh = new Mesh(true, verts.size / FLOATS_PER_VERTEX, inds.size,
-                new VertexAttribute(VertexAttributes.Usage.Position, 3, "a_position"),
-                new VertexAttribute(VertexAttributes.Usage.Normal, 3, "a_normal"),
-                new VertexAttribute(VertexAttributes.Usage.TextureCoordinates, 2, "a_texCoord0"),
-                new VertexAttribute(VertexAttributes.Usage.TextureCoordinates, 2, "a_texCoord1")
-            );
+                    new VertexAttribute(VertexAttributes.Usage.Position, 3, "a_position"),
+                    new VertexAttribute(VertexAttributes.Usage.Normal, 3, "a_normal"),
+                    new VertexAttribute(VertexAttributes.Usage.TextureCoordinates, 2, "a_texCoord0"),
+                    new VertexAttribute(VertexAttributes.Usage.TextureCoordinates, 2, "a_texCoord1"));
 
             mesh.setVertices(verts.items, 0, verts.size);
             mesh.setIndices(inds.items, 0, inds.size);

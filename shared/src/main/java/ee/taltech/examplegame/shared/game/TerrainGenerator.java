@@ -1,18 +1,14 @@
-package ee.taltech.examplegame.game;
+package ee.taltech.examplegame.shared.game;
 
-import com.badlogic.gdx.math.MathUtils;
+import constant.BlockConstants;
 
 /**
- * Generates base terrain heights and fills a 3D blocks array with stone/dirt/grass.
- * Handles water generation and ensures proper soil types (dirt vs grass) based on water level.
+ * Generates base terrain heights and fills a 3D blocks array with
+ * stone/dirt/grass.
+ * Handles water generation and ensures proper soil types (dirt vs grass)
+ * based on water level.
  */
 public class TerrainGenerator {
-
-    // Material Aliases for readability
-    private static final int MAT_GRASS = ProceduralVoxelWorld.MAT_GRASS;
-    private static final int MAT_DIRT  = ProceduralVoxelWorld.MAT_DIRT;
-    private static final int MAT_STONE = ProceduralVoxelWorld.MAT_STONE;
-    private static final int MAT_WATER = ProceduralVoxelWorld.MAT_WATER;
 
     // Generation Settings
     private static final int BASE_HEIGHT = 16;
@@ -43,9 +39,6 @@ public class TerrainGenerator {
 
     /**
      * Generates a single vertical column at (x, z).
-     * 1. Calculates height.
-     * 2. Fills ground (Stone -> Dirt -> Grass/Dirt).
-     * 3. Fills water if applicable.
      */
     private void generateColumn(int[][][] blocks, int x, int z) {
         int surfaceHeight = calculateSurfaceHeight(x, z);
@@ -60,55 +53,51 @@ public class TerrainGenerator {
     }
 
     /**
-     * Calculates the terrain height for a specific coordinate using noise functions.
+     * Calculates the terrain height for a specific coordinate
+     * using noise functions.
      */
     private int calculateSurfaceHeight(int x, int z) {
         // Simple sine-wave based noise
         float noise = (float) (Math.sin(x * 0.2f) * 2.5f
-            + Math.cos(z * 0.3f) * 2.5f
-            + Math.sin((x + z) * 0.1f) * 1.5f
-            + (MathUtils.random() - 0.5f) * 0.5f);
+                + Math.cos(z * 0.3f) * 2.5f
+                + Math.sin((x + z) * 0.1f) * 1.5f);
 
         int h = (int) (BASE_HEIGHT + noise);
 
-        // Clamp to ensure we don't go out of bounds or too close to the sky
-        return MathUtils.clamp(h, 0, height - 6);
+        // Clamp
+        return Math.clamp(h, 0, height - 6);
     }
 
     /**
-     * Determines which material to place at height y, given the total column height.
+     * Determines which material to place at height y.
      */
     private int getGroundMaterial(int y, int surfaceHeight) {
         boolean isTopBlock = (y == surfaceHeight - 1);
 
         // Top layer logic
         if (isTopBlock) {
-            // If the top block is underwater, it must be DIRT, not GRASS
             boolean isUnderwater = (y < waterLevel);
-            return isUnderwater ? MAT_DIRT : MAT_GRASS;
+            return isUnderwater ? BlockConstants.MAT_DIRT : BlockConstants.MAT_GRASS;
         }
 
         // Just below surface logic
         boolean isDirtLayer = (y >= surfaceHeight - DIRT_LAYER_THICKNESS);
         if (isDirtLayer) {
-            return MAT_DIRT;
+            return BlockConstants.MAT_DIRT;
         }
 
         // Deep logic
-        return MAT_STONE;
+        return BlockConstants.MAT_STONE;
     }
 
-    /**
-     * Fills water from the surface up to the water level.
-     */
     private void fillWater(int[][][] blocks, int x, int z, int startY) {
-        if (startY >= waterLevel) return;
+        if (startY >= waterLevel)
+            return;
 
-        // Clamp max water height to world height to avoid array index out of bounds
         int fillMax = Math.min(waterLevel, height);
 
         for (int y = startY; y < fillMax; y++) {
-            blocks[x][y][z] = MAT_WATER;
+            blocks[x][y][z] = BlockConstants.MAT_WATER;
         }
     }
 }

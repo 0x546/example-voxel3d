@@ -9,6 +9,9 @@ import message.dto.PlayerState;
 import java.util.ArrayList;
 
 public class KryoHelper {
+    private KryoHelper() {
+        /* This utility class should not be instantiated */
+    }
 
     public static void registerClasses(Kryo kryo) {
         // all classes that you want to send over the network
@@ -22,5 +25,6 @@ public class KryoHelper {
         kryo.register(PlayerState.class);
         kryo.register(BulletState.class);
         kryo.register(PlayerShootingMessage.class);
+        kryo.register(message.PlayerInputMessage.class);
     }
 }

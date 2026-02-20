@@ -9,9 +9,16 @@ import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
+import com.badlogic.gdx.graphics.g3d.Model;
+import com.badlogic.gdx.graphics.g3d.ModelInstance;
+import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.math.Vector3;
+import ee.taltech.examplegame.game.GameStateManager;
+import ee.taltech.examplegame.network.ServerConnection;
 import ee.taltech.examplegame.game.ProceduralVoxelWorld;
 import ee.taltech.examplegame.screen.overlay.VoxelHud;
+import ee.taltech.examplegame.util.PlayerModelGenerator;
+import message.PlayerInputMessage;
 
 public class VoxelScreen extends ScreenAdapter {
 
@@ -21,9 +28,30 @@ public class VoxelScreen extends ScreenAdapter {
     private final ProceduralVoxelWorld voxelWorld;
     private final VoxelHud hud;
 
+    private final GameStateManager gameStateManager;
+    private final ModelBatch modelBatch;
+    private final Model playerModel;
+    private final ModelInstance playerInstance; // Reused for rendering
+    private final java.util.Map<Integer, Vector3> playerPositions = new java.util.HashMap<>();
+
     private float pitch = 0;
     private float yaw = 0;
     private static float mouseSensitivity = 0.2f;
+
+    // Physics state
+    private float vx;
+    private float vy;
+    private float vz;
+    private boolean onGround = false;
+
+    // Physics constants (Must match Server Player.java)
+    private static final float GRAVITY = 25f;
+    private static final float JUMP_VELOCITY = 10f;
+    private static final float MOVE_SPEED = 16f;
+    private static final float DAMPING = 0.9f;
+    private static final float PLAYER_WIDTH = 0.6f;
+    private static final float PLAYER_HEIGHT = 1.8f;
+    private static final float EYE_HEIGHT = 1.6f; // Camera height from feet
 
     public VoxelScreen(Game game) {
         this.game = game;
@@ -46,11 +74,19 @@ public class VoxelScreen extends ScreenAdapter {
 
         voxelWorld = new ProceduralVoxelWorld();
         hud = new VoxelHud();
+
+        gameStateManager = new GameStateManager();
+        modelBatch = new ModelBatch();
+
+        playerModel = PlayerModelGenerator.createPlayerModel();
+        playerInstance = new ModelInstance(playerModel);
     }
 
     @Override
     public void render(float delta) {
         handleInput(delta);
+        updatePhysics(delta);
+        sendInput(); // Send input to server
         updateCamera();
 
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -58,6 +94,46 @@ public class VoxelScreen extends ScreenAdapter {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
 
         voxelWorld.render(camera);
+
+        // Render other players
+        modelBatch.begin(camera);
+        var playerStates = gameStateManager.getLatestGameStateMessage().getPlayerStates();
+        if (playerStates != null) {
+            int myId = ServerConnection.getInstance().getClient().getID();
+            for (var state : playerStates) {
+                if (state.getId() == myId) {
+                    if (Math.abs(camera.position.x - state.getX()) > 5f
+                            || Math.abs(camera.position.z - state.getZ()) > 5f
+                            || Math.abs(camera.position.y - state.getY()) > 5f) {
+                        camera.position.set(state.getX(), state.getY() + EYE_HEIGHT, state.getZ());
+                    }
+                    continue;
+                }
+
+                // Simple interpolation/smoothing
+                Vector3 targetPos = new Vector3(state.getX(), state.getY(), state.getZ());
+
+                if (!playerPositions.containsKey(state.getId())) {
+                    playerPositions.put(state.getId(), targetPos);
+                }
+
+                Vector3 currentPos = playerPositions.get(state.getId());
+                currentPos.lerp(targetPos, 25f * delta);
+
+                playerInstance.transform.setToTranslation(currentPos);
+                playerInstance.transform.rotate(Vector3.Y, state.getYaw());
+
+                // Head tilt
+                var headNode = playerInstance.getNode("head");
+                if (headNode != null) {
+                    headNode.rotation.setEulerAngles(0, state.getPitch(), 0);
+                    playerInstance.calculateTransforms();
+                }
+
+                modelBatch.render(playerInstance, environment);
+            }
+        }
+        modelBatch.end();
 
         hud.render();
 
@@ -75,41 +151,151 @@ public class VoxelScreen extends ScreenAdapter {
         }
     }
 
-    private void handleInput(float delta) {
-        float speed = 10f * delta;
-        if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) speed *= 2f;
+    private void sendInput() {
+        if (ServerConnection.getInstance().getClient().isConnected()) {
+            PlayerInputMessage message = new PlayerInputMessage();
+            message.setUp(Gdx.input.isKeyPressed(Input.Keys.W));
+            message.setDown(Gdx.input.isKeyPressed(Input.Keys.S));
+            message.setLeft(Gdx.input.isKeyPressed(Input.Keys.A));
+            message.setRight(Gdx.input.isKeyPressed(Input.Keys.D));
+            message.setJump(Gdx.input.isKeyPressed(Input.Keys.SPACE));
+            message.setSneak(Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT));
+            message.setYaw(yaw);
+            message.setPitch(pitch);
+            ServerConnection.getInstance().getClient().sendUDP(message);
+        }
+    }
 
-        // FIX: Calculate movement based on Flat YAW, ignoring PITCH.
-        // This prevents getting stuck when looking straight up or down.
-        float dx = (float) Math.sin(Math.toRadians(yaw)); // LibGDX sin takes radians
-        float dz = (float) Math.cos(Math.toRadians(yaw)); // LibGDX cos takes radians
+    private void handleInput(float delta) {
+        // Apply forces based on input
+        float dx = (float) Math.sin(Math.toRadians(yaw));
+        float dz = (float) Math.cos(Math.toRadians(yaw));
 
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-            camera.position.x -= dx * speed;
-            camera.position.z -= dz * speed;
+            vx -= dx * MOVE_SPEED * delta;
+            vz -= dz * MOVE_SPEED * delta;
         }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) {
-            camera.position.x += dx * speed;
-            camera.position.z += dz * speed;
+            vx += dx * MOVE_SPEED * delta;
+            vz += dz * MOVE_SPEED * delta;
         }
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
-            // Strafe left (perpendicular to forward)
-            camera.position.x -= dz * speed;
-            camera.position.z += dx * speed;
+            vx -= dz * MOVE_SPEED * delta;
+            vz += dx * MOVE_SPEED * delta;
         }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
-            // Strafe right
-            camera.position.x += dz * speed;
-            camera.position.z -= dx * speed;
+            vx += dz * MOVE_SPEED * delta;
+            vz -= dx * MOVE_SPEED * delta;
         }
-        if (Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
-            camera.position.y += speed;
+        if (Gdx.input.isKeyPressed(Input.Keys.SPACE) && onGround) {
+            vy = JUMP_VELOCITY;
         }
-        if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT)) {
-            camera.position.y -= speed;
+    }
+
+    private void updatePhysics(float delta) {
+        // 1. Gravity
+        vy -= GRAVITY * delta;
+
+        // 2. Apply Velocity to potential new position
+        // Current feet position
+        float x = camera.position.x;
+        float y = camera.position.y - EYE_HEIGHT;
+        float z = camera.position.z;
+
+        float nextX = x + vx * delta;
+        float nextY = y + vy * delta;
+        float nextZ = z + vz * delta;
+
+        int[][][] blocks = voxelWorld.getBlocks();
+
+        // 3. Collision Detection
+        // Check X axis
+        if (!checkCollision(nextX, y, z, blocks)) {
+            x = nextX;
+        } else {
+            vx = 0;
         }
 
+        // Check Z axis
+        if (!checkCollision(x, y, nextZ, blocks)) {
+            z = nextZ;
+        } else {
+            vz = 0;
+        }
+
+        // Check Y axis
+        if (!checkCollision(x, nextY, z, blocks)) {
+            y = nextY;
+            onGround = false;
+        } else {
+            if (vy < 0)
+                onGround = true; // Hit ground
+            vy = 0;
+        }
+
+        // 4. Damping
+        vx *= DAMPING;
+        vz *= DAMPING;
+
+        // 5. Bounds Check (Simple world bounds)
+        if (blocks != null) {
+            x = Math.clamp(x, 0, blocks.length - 1f);
+            z = Math.clamp(z, 0, blocks[0][0].length - 1f);
+        }
+
+        // Void kill / respawn logic (client side visual only, server handles real
+        // death)
+        if (y < -10) {
+            // Reset to spawn or wait for server correction
+            y = 30;
+            vy = 0;
+        }
+
+        // Update Camera
+        camera.position.set(x, y + EYE_HEIGHT, z);
         camera.update();
+    }
+
+    private boolean checkCollision(float px, float py, float pz, int[][][] blocks) {
+        if (blocks == null)
+            return false;
+
+        float minX = px - PLAYER_WIDTH / 2;
+        float maxX = px + PLAYER_WIDTH / 2;
+        float minY = py;
+        float maxY = py + PLAYER_HEIGHT;
+        float minZ = pz - PLAYER_WIDTH / 2;
+        float maxZ = pz + PLAYER_WIDTH / 2;
+
+        int startX = (int) Math.floor(minX);
+        int endX = (int) Math.floor(maxX);
+        int startY = (int) Math.floor(minY);
+        int endY = (int) Math.floor(maxY);
+        int startZ = (int) Math.floor(minZ);
+        int endZ = (int) Math.floor(maxZ);
+
+        for (int ix = startX; ix <= endX; ix++) {
+            for (int iy = startY; iy <= endY; iy++) {
+                for (int iz = startZ; iz <= endZ; iz++) {
+                    if (isSolid(ix, iy, iz, blocks)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isSolid(int x, int y, int z, int[][][] blocks) {
+        if (x < 0 || x >= blocks.length || z < 0 || z >= blocks[0][0].length)
+            return true;
+        if (y < 0)
+            return true;
+        if (y >= blocks[0].length)
+            return false;
+
+        int type = blocks[x][y][z];
+        return type != 0 && type != 6; // 0=Air, 6=Water.
     }
 
     private void updateCamera() {
