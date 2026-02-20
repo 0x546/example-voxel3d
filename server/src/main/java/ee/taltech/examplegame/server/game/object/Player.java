@@ -13,7 +13,14 @@ import static constant.Constants.PLAYER_SPAWN_X;
 import static constant.Constants.PLAYER_SPAWN_Y;
 import static constant.Constants.PLAYER_SPAWN_Z;
 import static constant.Constants.PLAYER_WIDTH;
+import static constant.Constants.SWIM_UP_SPEED;
 import static constant.Constants.VOID_LEVEL;
+import static constant.Constants.WATER_DAMPING;
+import static constant.Constants.WATER_GRAVITY;
+import static constant.Constants.WATER_LEVEL;
+import static constant.Constants.WATER_MOVE_SPEED;
+import static constant.Constants.WATER_WAVE_AMPLITUDE;
+import static constant.Constants.WATER_WAVE_SPEED;
 import ee.taltech.examplegame.server.game.GameInstance;
 import ee.taltech.examplegame.server.listener.PlayerMovementListener;
 import lombok.Getter;
@@ -76,31 +83,46 @@ public class Player {
         this.pitch = message.getPitch();
     }
 
-    public void update(float delta, int[][][] blocks) {
+    public void update(float delta, int[][][] blocks, float time) {
+        float depth = getWaterDepth(blocks, time);
+        boolean inWater = depth > 0;
+
         // 1. Apply Input Forces
         float dx = (float) Math.sin(Math.toRadians(yaw));
         float dz = (float) Math.cos(Math.toRadians(yaw));
+        float speed = inWater ? WATER_MOVE_SPEED : MOVE_SPEED;
 
         // Primary Movement axes
         if (moveForward != 0) {
-            vx -= dx * moveForward * MOVE_SPEED * delta;
-            vz -= dz * moveForward * MOVE_SPEED * delta;
+            vx -= dx * moveForward * speed * delta;
+            vz -= dz * moveForward * speed * delta;
         }
 
         // Strafing axes
         if (moveSideways != 0) {
-            vx += dz * moveSideways * MOVE_SPEED * delta;
-            vz -= dx * moveSideways * MOVE_SPEED * delta;
+            vx += dz * moveSideways * speed * delta;
+            vz -= dx * moveSideways * speed * delta;
         }
 
-        // Jump (only if on ground? For now, allow infinite jump for testing/flight if
-        // needed, but lets try gravity)
-        if (jump && isOnGround(blocks)) {
-            vy = JUMP_VELOCITY;
+        // Jump / Swim
+        if (jump) {
+            if (inWater) {
+                if (depth > 0.35f) {
+                    // "Leap" out of water if near surface
+                    vy = JUMP_VELOCITY;
+                } else {
+                    // Smooth swim upward: force is stronger the deeper we are
+                    float forceScale = Math.clamp(depth * 2.0f, 0.1f, 1f);
+                    vy += 45f * forceScale * delta;
+                    if (vy > SWIM_UP_SPEED) vy = SWIM_UP_SPEED;
+                }
+            } else if (isOnGround(blocks)) {
+                vy = JUMP_VELOCITY;
+            }
         }
 
-        // 2. Apply Gravity
-        vy -= GRAVITY * delta;
+        // 2. Apply Gravity (reduced in water)
+        vy -= (inWater ? WATER_GRAVITY : GRAVITY) * delta;
 
         // 3. Apply Velocity
         float nextX = x + vx * delta;
@@ -129,9 +151,13 @@ public class Player {
             vy = 0;
         }
 
-        // 5. Damping
-        vx *= DAMPING;
-        vz *= DAMPING;
+        // 5. Damping (stronger in water)
+        float damp = inWater ? WATER_DAMPING : DAMPING;
+        vx *= damp;
+        vz *= damp;
+        if (inWater) {
+            vy *= 0.92f; // vertical drag in water
+        }
 
         // Bounds check (keep in world)
         x = Math.clamp(x, 0, blocks.length - 1f);
@@ -183,6 +209,30 @@ public class Player {
 
     private boolean isOnGround(int[][][] blocks) {
         return checkCollision(x, y - 0.1f, z, blocks);
+    }
+
+    /**
+     * Returns how deep the player's feet are in water (0 if above water).
+     */
+    private float getWaterDepth(int[][][] blocks, float time) {
+        int bx = (int) Math.floor(x);
+        int by = (int) Math.floor(y); // feet level
+        int bz = (int) Math.floor(z);
+
+        if (bx < 0 || bx >= blocks.length || by < 0 || by >= blocks[0].length || bz < 0 || bz >= blocks[0][0].length)
+            return 0;
+
+        // First check if the block at feet position is water
+        if (blocks[bx][by][bz] != BlockConstants.MAT_WATER) return 0;
+
+        // More precise check against animated waves (matching the water shader)
+        float t = time * WATER_WAVE_SPEED;
+        float w1 = (float) Math.sin(x * 1.8f + t) * WATER_WAVE_AMPLITUDE;
+        float w2 = (float) Math.sin(z * 2.3f + t * 0.7f + 1.3f) * WATER_WAVE_AMPLITUDE * 0.5f;
+        float w3 = (float) Math.sin((x + z) * 3.7f + t * 1.13f + 2.7f) * WATER_WAVE_AMPLITUDE * 0.3f;
+        float surfaceY = WATER_LEVEL - 0.12f + w1 + w2 + w3;
+
+        return Math.max(0, surfaceY - y);
     }
 
     /**

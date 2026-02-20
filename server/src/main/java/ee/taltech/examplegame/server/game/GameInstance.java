@@ -132,7 +132,8 @@ public class GameInstance extends Thread {
 
             // update players (physics, movement)
             float delta = 1.0f / GAME_TICK_RATE;
-            players.forEach(p -> p.update(delta, blocks));
+            float time = gameStateHandler.getGameTime();
+            players.forEach(p -> p.update(delta, blocks, time));
 
             // construct gameStateMessage
             var gameStateMessage = gameStateHandler.getGameStateMessage(players);

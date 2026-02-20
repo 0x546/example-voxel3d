@@ -1,5 +1,8 @@
 package ee.taltech.examplegame.screen;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.ScreenAdapter;
@@ -13,6 +16,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.math.Vector3;
 
+import constant.BlockConstants;
 import static constant.Constants.CAMERA_FAR;
 import static constant.Constants.CAMERA_FOV;
 import static constant.Constants.CAMERA_NEAR;
@@ -26,6 +30,13 @@ import static constant.Constants.PLAYER_HEIGHT;
 import static constant.Constants.PLAYER_INTERPOLATION_SPEED;
 import static constant.Constants.PLAYER_SNAP_DISTANCE;
 import static constant.Constants.PLAYER_WIDTH;
+import static constant.Constants.SWIM_UP_SPEED;
+import static constant.Constants.WATER_DAMPING;
+import static constant.Constants.WATER_GRAVITY;
+import static constant.Constants.WATER_LEVEL;
+import static constant.Constants.WATER_MOVE_SPEED;
+import static constant.Constants.WATER_WAVE_AMPLITUDE;
+import static constant.Constants.WATER_WAVE_SPEED;
 import ee.taltech.examplegame.game.GameStateManager;
 import ee.taltech.examplegame.game.PlayerInputManager;
 import ee.taltech.examplegame.game.ProceduralVoxelWorld;
@@ -35,9 +46,6 @@ import ee.taltech.examplegame.screen.overlay.VoxelHud;
 import ee.taltech.examplegame.util.PlayerModelGenerator;
 import message.dto.PlayerState;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public class VoxelScreen extends ScreenAdapter {
 
     private final PerspectiveCamera camera;
@@ -46,6 +54,7 @@ public class VoxelScreen extends ScreenAdapter {
     private final VoxelHud hud;
     private final PauseOverlay pauseOverlay;
     private boolean paused = false;
+    private boolean underwater = false;
 
     private final GameStateManager gameStateManager;
     private final PlayerInputManager inputManager;
@@ -125,10 +134,13 @@ public class VoxelScreen extends ScreenAdapter {
         // Keep local player in sync with server authority
         synchronizeLocalPlayerWithServer(delta);
 
+        // Detect underwater state
+        underwater = isUnderwater();
+
         // --- Rendering ---
         clearScreen();
 
-        voxelWorld.render(camera);
+        voxelWorld.render(camera, underwater);
 
         renderOtherPlayers(delta);
 
@@ -190,19 +202,36 @@ public class VoxelScreen extends ScreenAdapter {
         float f = inputManager.getMoveForward();
         float s = inputManager.getMoveSideways();
 
+        float depth = getWaterDepth();
+        boolean inWater = depth > 0;
+        float speed = inWater ? WATER_MOVE_SPEED : MOVE_SPEED;
+
         if (f != 0) {
-            vx -= dx * f * MOVE_SPEED * delta;
-            vz -= dz * f * MOVE_SPEED * delta;
+            vx -= dx * f * speed * delta;
+            vz -= dz * f * speed * delta;
         }
 
         if (s != 0) {
             // Strafing
-            vx += dz * s * MOVE_SPEED * delta;
-            vz -= dx * s * MOVE_SPEED * delta;
+            vx += dz * s * speed * delta;
+            vz -= dx * s * speed * delta;
         }
 
-        if (inputManager.isJump() && onGround) {
-            vy = JUMP_VELOCITY;
+        if (inputManager.isJump()) {
+            if (inWater) {
+                if (depth > 0.35f) {
+                    // "Leap" out of water if near surface
+                    vy = JUMP_VELOCITY;
+                } else {
+                    // Smooth swim upward: force is stronger the deeper we are
+                    // 1.0 at 0.5 blocks depth, near 0 at surface
+                    float forceScale = Math.clamp(depth * 2.0f, 0.1f, 1f);
+                    vy += 45f * forceScale * delta;
+                    if (vy > SWIM_UP_SPEED) vy = SWIM_UP_SPEED;
+                }
+            } else if (onGround) {
+                vy = JUMP_VELOCITY;
+            }
         }
     }
 
@@ -210,8 +239,11 @@ public class VoxelScreen extends ScreenAdapter {
     // Helper: physics + collision
     // -------------------------
     private void updatePhysics(float delta) {
-        // 1. Gravity
-        vy -= GRAVITY * delta;
+        float depth = getWaterDepth();
+        boolean inWater = depth > 0;
+
+        // 1. Gravity (reduced in water for slow sinking)
+        vy -= (inWater ? WATER_GRAVITY : GRAVITY) * delta;
 
         // Current feet position
         float x = camera.position.x;
@@ -247,9 +279,13 @@ public class VoxelScreen extends ScreenAdapter {
             onGround = false;
         }
 
-        // Damping
-        vx *= DAMPING;
-        vz *= DAMPING;
+        // Damping (stronger in water)
+        float damp = inWater ? WATER_DAMPING : DAMPING;
+        vx *= damp;
+        vz *= damp;
+        if (inWater) {
+            vy *= 0.92f; // vertical drag in water
+        }
 
         // Bounds check
         if (blocks != null) {
@@ -342,11 +378,69 @@ public class VoxelScreen extends ScreenAdapter {
     }
 
     // -------------------------
+    // Helper: underwater detection
+    // -------------------------
+    private boolean isUnderwater() {
+        float cx = camera.position.x;
+        float cy = camera.position.y;
+        float cz = camera.position.z;
+
+        if (isWaterBlock(cx, cy, cz)) {
+            float surfaceY = computeWaterSurfaceY(cx, cz);
+            return cy < surfaceY;
+        }
+        return false;
+    }
+
+    private float getWaterDepth() {
+        float cx = camera.position.x;
+        float fy = camera.position.y - EYE_HEIGHT;
+        float cz = camera.position.z;
+
+        if (isWaterBlock(cx, fy, cz)) {
+            float surfaceY = computeWaterSurfaceY(cx, cz);
+            return Math.max(0f, surfaceY - fy);
+        }
+        return 0f;
+    }
+
+    private boolean isWaterBlock(float x, float y, float z) {
+        int[][][] blocks = voxelWorld.getBlocks();
+        if (blocks == null) return false;
+
+        int bx = (int) Math.floor(x);
+        int by = (int) Math.floor(y);
+        int bz = (int) Math.floor(z);
+
+        if (bx < 0 || bx >= blocks.length ||
+            by < 0 || by >= blocks[0].length ||
+            bz < 0 || bz >= blocks[0][0].length)
+            return false;
+
+        return blocks[bx][by][bz] == BlockConstants.MAT_WATER;
+    }
+
+    private float computeWaterSurfaceY(float x, float z) {
+        float time = voxelWorld.getTime();
+        float t = time * WATER_WAVE_SPEED;
+
+        float w1 = (float) Math.sin(x * 1.8f + t) * WATER_WAVE_AMPLITUDE;
+        float w2 = (float) Math.sin(z * 2.3f + t * 0.7f + 1.3f) * WATER_WAVE_AMPLITUDE * 0.5f;
+        float w3 = (float) Math.sin((x + z) * 3.7f + t * 1.13f + 2.7f) * WATER_WAVE_AMPLITUDE * 0.3f;
+
+        return WATER_LEVEL - 0.12f + w1 + w2 + w3;
+    }
+
+    // -------------------------
     // Helper: rendering
     // -------------------------
     private void clearScreen() {
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        Gdx.gl.glClearColor(0.5f, 0.8f, 1f, 1f); // sky blue
+        if (underwater) {
+            Gdx.gl.glClearColor(0.02f, 0.06f, 0.14f, 1f); // dark underwater fog
+        } else {
+            Gdx.gl.glClearColor(0.5f, 0.8f, 1f, 1f); // sky blue
+        }
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
     }
 

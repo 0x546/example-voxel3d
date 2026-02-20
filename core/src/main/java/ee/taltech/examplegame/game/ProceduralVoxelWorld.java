@@ -15,6 +15,8 @@ import static constant.Colors.STONE;
 import static constant.Colors.WATER;
 import static constant.Colors.WOOD;
 import static constant.Constants.WATER_LEVEL;
+import static constant.Constants.WATER_WAVE_AMPLITUDE;
+import static constant.Constants.WATER_WAVE_SPEED;
 import static constant.Constants.WORLD_DEPTH;
 import static constant.Constants.WORLD_HEIGHT;
 import static constant.Constants.WORLD_WIDTH;
@@ -32,8 +34,12 @@ public class ProceduralVoxelWorld implements Disposable {
     private final Mesh opaqueMesh;
     private final Mesh waterMesh;
     private final ShaderProgram shader;
+    private final ShaderProgram waterShader;
     @Getter
     private final int[][][] blocks;
+
+    @Getter
+    private float time = 0f;
 
     public ProceduralVoxelWorld() {
         blocks = new int[WORLD_WIDTH][WORLD_HEIGHT][WORLD_DEPTH];
@@ -49,24 +55,39 @@ public class ProceduralVoxelWorld implements Disposable {
         opaqueMesh = mp.opaqueMesh();
         waterMesh = mp.waterMesh();
 
-        // shader
+        // opaque shader
         ShaderProgram.pedantic = false;
         shader = new ShaderProgram(Shaders.VERT, Shaders.FRAG);
         if (!shader.isCompiled()) {
             Gdx.app.error("Shader", shader.getLog());
         }
+
+        // water shader
+        waterShader = new ShaderProgram(Shaders.WATER_VERT, Shaders.WATER_FRAG);
+        if (!waterShader.isCompiled()) {
+            Gdx.app.error("WaterShader", waterShader.getLog());
+        }
     }
 
-    public void render(Camera camera) {
+    public void render(Camera camera, boolean underwater) {
+        float delta = Gdx.graphics.getDeltaTime();
+        time += delta;
+
         // Common GL state
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
         Gdx.gl.glDepthFunc(GL20.GL_LEQUAL);
         Gdx.gl.glEnable(GL20.GL_CULL_FACE);
         Gdx.gl.glCullFace(GL20.GL_BACK);
 
+        // ---- Opaque pass ----
         shader.bind();
         shader.setUniformMatrix("u_projView", camera.combined);
         shader.setUniformf("u_lightDir", -0.5f, -1f, -0.3f);
+        shader.setUniformi("u_underwater", underwater ? 1 : 0);
+        shader.setUniformf("u_waterLevel", WATER_LEVEL);
+        shader.setUniformf("u_time", time);
+        shader.setUniformf("u_waveAmp", WATER_WAVE_AMPLITUDE);
+        shader.setUniformf("u_waveSpeed", WATER_WAVE_SPEED);
 
         // base colors
         shader.setUniformf("u_mat_grass", GRASS.r(), GRASS.g(), GRASS.b());
@@ -77,16 +98,38 @@ public class ProceduralVoxelWorld implements Disposable {
         shader.setUniformf("u_mat_water", WATER.r(), WATER.g(), WATER.b());
         shader.setUniformf("u_mat_player", PLAYER.r(), PLAYER.g(), PLAYER.b());
 
-        // Render opaque geometry first
         if (opaqueMesh != null)
             opaqueMesh.render(shader, GL20.GL_TRIANGLES);
 
-        // Render water with blending after opaque
+        // ---- Water pass ----
+        // Always render the water surface. When underwater, disable culling so the
+        // top surface is visible from below. The fragment shader discards non-top
+        // faces underwater to prevent z-fighting at water-solid boundaries.
         if (waterMesh != null) {
             Gdx.gl.glEnable(GL20.GL_BLEND);
             Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-            waterMesh.render(shader, GL20.GL_TRIANGLES);
+
+            if (underwater) {
+                Gdx.gl.glDisable(GL20.GL_CULL_FACE);
+            }
+
+            waterShader.bind();
+            waterShader.setUniformMatrix("u_projView", camera.combined);
+            waterShader.setUniformf("u_lightDir", -0.5f, -1f, -0.3f);
+            waterShader.setUniformf("u_time", time);
+            waterShader.setUniformf("u_waveAmp", WATER_WAVE_AMPLITUDE);
+            waterShader.setUniformf("u_waveSpeed", WATER_WAVE_SPEED);
+            waterShader.setUniformf("u_cameraPos", camera.position.x, camera.position.y, camera.position.z);
+            waterShader.setUniformi("u_underwater", underwater ? 1 : 0);
+            waterShader.setUniformf("u_mat_water", WATER.r(), WATER.g(), WATER.b());
+
+            waterMesh.render(waterShader, GL20.GL_TRIANGLES);
+
             Gdx.gl.glDisable(GL20.GL_BLEND);
+
+            if (underwater) {
+                Gdx.gl.glEnable(GL20.GL_CULL_FACE);
+            }
         }
     }
 
@@ -95,5 +138,6 @@ public class ProceduralVoxelWorld implements Disposable {
         if (opaqueMesh != null) opaqueMesh.dispose();
         if (waterMesh != null) waterMesh.dispose();
         if (shader != null) shader.dispose();
+        if (waterShader != null) waterShader.dispose();
     }
 }
