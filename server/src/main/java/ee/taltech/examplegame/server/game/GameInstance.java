@@ -39,6 +39,7 @@ public class GameInstance extends Thread {
     private final GameStateHandler gameStateHandler = new GameStateHandler();
 
     private final Set<Connection> connections = new HashSet<>(); // Avoid a connection (player) joining the game twice
+    @Getter
     private final List<Player> players = new ArrayList<>();
 
     // Server-side world for physics
@@ -80,6 +81,11 @@ public class GameInstance extends Thread {
      * @param connection Connection to the client side of the player.
      */
     public void addConnection(Connection connection) {
+        if (connections.contains(connection)) {
+            Log.info("Connection already in game: " + connection.getID());
+            return;
+        }
+
         if (hasEnoughPlayers()) {
             Log.info("Cannot add connection: Required number of players already connected.");
             return;
@@ -97,7 +103,9 @@ public class GameInstance extends Thread {
     }
 
     public void removeConnection(Connection connection) {
-        this.connections.remove(connection);
+        if (this.connections.remove(connection)) {
+            players.removeIf(p -> p.getConnection().equals(connection));
+        }
     }
 
     /**
@@ -152,6 +160,7 @@ public class GameInstance extends Thread {
                 Thread.sleep(Duration.ofMillis(1000 / GAME_TICK_RATE));
             } catch (InterruptedException e) {
                 Log.error("Game loop sleep interrupted", e);
+                Thread.currentThread().interrupt();
             }
         }
     }

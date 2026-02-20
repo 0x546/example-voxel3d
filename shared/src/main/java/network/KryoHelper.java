@@ -17,5 +17,7 @@ public class KryoHelper {
         kryo.register(message.GameStateMessage.class);
         kryo.register(message.dto.PlayerState.class);
         kryo.register(message.PlayerMovementMessage.class);
+        kryo.register(message.GameLeaveMessage.class);
+        kryo.register(message.PlayerRespawnMessage.class);
     }
 }

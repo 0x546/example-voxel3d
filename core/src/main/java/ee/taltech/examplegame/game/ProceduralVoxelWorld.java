@@ -20,6 +20,7 @@ import static constant.Constants.WORLD_HEIGHT;
 import static constant.Constants.WORLD_WIDTH;
 import ee.taltech.examplegame.shared.game.TerrainGenerator;
 import ee.taltech.examplegame.shared.game.TreeGenerator;
+import lombok.Getter;
 
 /**
  * High-level class that uses shared TerrainGenerator and TreeGenerator,
@@ -31,6 +32,7 @@ public class ProceduralVoxelWorld implements Disposable {
     private final Mesh opaqueMesh;
     private final Mesh waterMesh;
     private final ShaderProgram shader;
+    @Getter
     private final int[][][] blocks;
 
     public ProceduralVoxelWorld() {
@@ -53,10 +55,6 @@ public class ProceduralVoxelWorld implements Disposable {
         if (!shader.isCompiled()) {
             Gdx.app.error("Shader", shader.getLog());
         }
-    }
-
-    public int[][][] getBlocks() {
-        return blocks;
     }
 
     public void render(Camera camera) {

@@ -3,6 +3,7 @@ package ee.taltech.examplegame.server.listener;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.minlog.Log;
+
 import ee.taltech.examplegame.server.game.GameInstance;
 import message.GameJoinMessage;
 
@@ -66,6 +67,22 @@ public class ServerListener extends Listener {
             } else {
                 game.addConnection(connection);  // Add a second player (connection) if there is enough room in the game
             }
+        } else if (object instanceof message.GameLeaveMessage) {
+            if (game != null) {
+                game.removeConnection(connection);
+            }
+        } else if ((object instanceof message.PlayerRespawnMessage) && game != null) {
+            game.getPlayers().stream()
+                .filter(p -> p.getConnection().equals(connection))
+                .findFirst()
+                .ifPresent(p -> {
+                    p.setX(constant.Constants.PLAYER_SPAWN_X);
+                    p.setY(constant.Constants.PLAYER_SPAWN_Y);
+                    p.setZ(constant.Constants.PLAYER_SPAWN_Z);
+                    p.setVx(0);
+                    p.setVy(0);
+                    p.setVz(0);
+                });
         }
 
         super.received(connection, object);

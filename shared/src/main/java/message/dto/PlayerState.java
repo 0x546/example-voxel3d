@@ -8,6 +8,9 @@ public class PlayerState {
     private float x;
     private float y;
     private float z;
+    private float vx;
+    private float vy;
+    private float vz;
     private float yaw;
     private float pitch;
     private int lives;

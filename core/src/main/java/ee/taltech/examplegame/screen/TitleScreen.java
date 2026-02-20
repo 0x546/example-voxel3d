@@ -6,9 +6,10 @@ import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+
+import static ee.taltech.examplegame.component.ButtonComponents.getButton;
 import ee.taltech.examplegame.network.ServerConnection;
 import message.GameJoinMessage;
-import static ee.taltech.examplegame.component.ButtonComponents.getButton;
 
 /**
  * TitleScreen represents the main menu of the game, where players can choose to start the game or exit.
@@ -26,6 +27,9 @@ public class TitleScreen extends ScreenAdapter {
 
         // menu buttons
         var startButton = getButton(20, "Start Game", () -> {
+            // establish connection to the server if not already connected
+            ServerConnection.getInstance().connect();
+            
             // send a message to the server that the player wants to join the game
             ServerConnection.getInstance().getClient().sendTCP(new GameJoinMessage());
             game.setScreen(new VoxelScreen(game));

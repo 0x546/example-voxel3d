@@ -89,8 +89,8 @@ public class Player {
 
         // Strafing axes
         if (moveSideways != 0) {
-            vx -= dz * moveSideways * MOVE_SPEED * delta;
-            vz += dx * moveSideways * MOVE_SPEED * delta;
+            vx += dz * moveSideways * MOVE_SPEED * delta;
+            vz -= dx * moveSideways * MOVE_SPEED * delta;
         }
 
         // Jump (only if on ground? For now, allow infinite jump for testing/flight if
@@ -194,6 +194,9 @@ public class Player {
         playerState.setX(x);
         playerState.setY(y);
         playerState.setZ(z);
+        playerState.setVx(vx);
+        playerState.setVy(vy);
+        playerState.setVz(vz);
         playerState.setYaw(yaw);
         playerState.setPitch(pitch);
         playerState.setLives(lives);

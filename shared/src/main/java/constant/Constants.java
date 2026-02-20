@@ -1,6 +1,9 @@
 package constant;
 
 public class Constants {
+    private Constants() {
+        /* This utility class should not be instantiated */
+    }
 
     // --- networking constants ---
     public static final int PORT_TCP = 54555;
@@ -38,7 +41,7 @@ public class Constants {
 
     // --- game constants ---
     public static final int GAME_TICK_RATE = 60;
-    public static final int PLAYER_COUNT_IN_GAME = 2;
+    public static final int PLAYER_COUNT_IN_GAME = 4;
     public static final int PLAYER_LIVES_COUNT = 50;
 
     // --- shooting constants ---
@@ -49,7 +52,7 @@ public class Constants {
     public static final float MOUSE_SENSITIVITY = 0.2f;
     public static final float CAMERA_NEAR = 0.1f;
     public static final float CAMERA_FAR = 300f;
-    public static final float CAMERA_FOV = 67f;
+    public static final float CAMERA_FOV = 90f;
 
     // --- voxel mesh builder constants ---
     public static final int MAX_VERTICES = 32000;
@@ -57,7 +60,7 @@ public class Constants {
     public static final float MAT_ID_ENCODING_FACTOR = 255f;
 
     // --- player sync constants ---
-    public static final float PLAYER_INTERPOLATION_SPEED = 25f;
-    public static final float PLAYER_SNAP_DISTANCE = 5f;
+    public static final float PLAYER_INTERPOLATION_SPEED = 30f;
+    public static final float PLAYER_SNAP_DISTANCE = 1.0f;
 
 }
