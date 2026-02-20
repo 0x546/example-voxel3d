@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx;
 
 import ee.taltech.examplegame.constant.InputConstants;
 import ee.taltech.examplegame.network.ServerConnection;
+import lombok.Getter;
 import message.PlayerMovementMessage;
 
 /**
@@ -23,19 +24,18 @@ public class PlayerInputManager {
     private boolean lastSneak = false;
 
     // Exposed current state
+    @Getter
     private float moveForward = 0;
+    @Getter
     private float moveSideways = 0;
+    @Getter
     private boolean jump = false;
+    @Getter
     private boolean sneak = false;
+    @Getter
     private boolean pausePressed = false;
+    @Getter
     private boolean actionPressed = false;
-
-    public float getMoveForward() { return moveForward; }
-    public float getMoveSideways() { return moveSideways; }
-    public boolean isJump() { return jump; }
-    public boolean isSneak() { return sneak; }
-    public boolean isPausePressed() { return pausePressed; }
-    public boolean isActionPressed() { return actionPressed; }
 
     // Small threshold for rotation changes to avoid spamming tiny mouse movements
     private static final float ROTATION_THRESHOLD = 0.01f;
@@ -81,7 +81,7 @@ public class PlayerInputManager {
         moveSideways = 0;
         jump = false;
         sneak = false;
-        
+
         // Update last state to prevent immediate re-send upon unpausing if keys are still held
         lastForward = 0;
         lastSideways = 0;
