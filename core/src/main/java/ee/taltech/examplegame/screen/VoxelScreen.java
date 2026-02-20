@@ -47,7 +47,7 @@ public class VoxelScreen extends ScreenAdapter {
     private final PlayerInputManager inputManager;
     private final ModelBatch modelBatch;
     private final Model playerModel;
-    private final ModelInstance reusablePlayerInstance;
+    private final Map<Integer, ModelInstance> playerInstances = new HashMap<>();
     private final Map<Integer, Vector3> playerPositions = new HashMap<>();
 
     private float pitch;
@@ -55,6 +55,8 @@ public class VoxelScreen extends ScreenAdapter {
 
     private final VoxelPhysics.PhysicsState physicsState = new VoxelPhysics.PhysicsState();
     private final VoxelPhysics.InputState inputState = new VoxelPhysics.InputState();
+
+    private float animationTimer = 0;
 
     public VoxelScreen(Game game) {
 
@@ -82,7 +84,6 @@ public class VoxelScreen extends ScreenAdapter {
         modelBatch = new ModelBatch();
 
         playerModel = PlayerModelGenerator.createPlayerModel();
-        reusablePlayerInstance = new ModelInstance(playerModel);
 
         pauseOverlay = new PauseOverlay(() -> {
             paused = false;
@@ -96,6 +97,7 @@ public class VoxelScreen extends ScreenAdapter {
 
     @Override
     public void render(float delta) {
+        animationTimer += delta;
         // Always update input state (so ESC/clicks are caught)
         inputManager.updateNoSend(paused);
 
@@ -287,21 +289,73 @@ public class VoxelScreen extends ScreenAdapter {
      */
     private void renderRemotePlayer(PlayerState state, float delta) {
         Vector3 targetPos = new Vector3(state.getX(), state.getY(), state.getZ());
-
         playerPositions.putIfAbsent(state.getId(), targetPos.cpy());
         Vector3 currentPos = playerPositions.get(state.getId());
+
+        float distanceMoved = currentPos.dst(targetPos);
         currentPos.lerp(targetPos, PLAYER_INTERPOLATION_SPEED * delta);
 
-        reusablePlayerInstance.transform.setToTranslation(currentPos);
-        reusablePlayerInstance.transform.rotate(Vector3.Y, state.getYaw());
+        playerInstances.putIfAbsent(state.getId(), new ModelInstance(playerModel));
+        ModelInstance instance = playerInstances.get(state.getId());
 
-        var headNode = reusablePlayerInstance.getNode("head");
-        if (headNode != null) {
-            headNode.rotation.setEulerAngles(0, state.getPitch(), 0);
-            reusablePlayerInstance.calculateTransforms();
+        // 1. Root transform (Model Center is at Y=1.1 relative to feet)
+        instance.transform.setToTranslation(currentPos.x, currentPos.y + 1.1f, currentPos.z);
+        instance.transform.rotate(Vector3.Y, state.getYaw());
+
+        boolean isMoving = distanceMoved > 0.005f;
+        boolean remoteUnderwater = VoxelPhysics.isUnderwater(
+            currentPos.x,
+            currentPos.y + EYE_HEIGHT,
+            currentPos.z,
+            voxelWorld.getTime(),
+            voxelWorld.getBlocks()
+        );
+
+        // 2. Compute local animations
+        if (remoteUnderwater) {
+            instance.transform.rotate(Vector3.X, -45); // Lean forward
+            float swimAngle = (float) Math.sin(animationTimer * 5f) * 30f;
+
+            updateLimb(instance, "body", 0, 0, 0, Vector3.X, 0);
+            updateLimb(instance, "head", 0, 0.3f, 0, Vector3.X, state.getPitch());
+
+            updateLimb(instance, "left_arm", -0.35f, 0.3f, 0, Vector3.Y, swimAngle + 45);
+            updateLimb(instance, "right_arm", 0.35f, 0.3f, 0, Vector3.Y, -swimAngle - 45);
+            updateLimb(instance, "left_leg", -0.15f, -0.3f, 0, Vector3.X, 10);
+            updateLimb(instance, "right_leg", 0.15f, -0.3f, 0, Vector3.X, 10);
+
+        } else {
+            float walkSpeed = 15f;
+            float angle = isMoving ? (float) Math.sin(animationTimer * walkSpeed) * 35f : 0f;
+
+            // Apply falling arm lift
+            float fallArmAngle = (!isMoving && Math.abs(state.getVy()) > 1.0f) ? 20f : 0f;
+
+            // These exact offsets position the limbs natively from the body center
+            updateLimb(instance, "body", 0, 0, 0, Vector3.X, 0);
+            updateLimb(instance, "head", 0, 0.3f, 0, Vector3.X, state.getPitch());
+
+            updateLimb(instance, "left_arm", -0.35f, 0.3f, 0, Vector3.Z, fallArmAngle);
+            if (fallArmAngle == 0) updateLimb(instance, "left_arm", -0.35f, 0.3f, 0, Vector3.X, -angle);
+
+            updateLimb(instance, "right_arm", 0.35f, 0.3f, 0, Vector3.Z, -fallArmAngle);
+            if (fallArmAngle == 0) updateLimb(instance, "right_arm", 0.35f, 0.3f, 0, Vector3.X, angle);
+
+            updateLimb(instance, "left_leg", -0.15f, -0.3f, 0, Vector3.X, angle);
+            updateLimb(instance, "right_leg", 0.15f, -0.3f, 0, Vector3.X, -angle);
         }
 
-        modelBatch.render(reusablePlayerInstance, environment);
+        // 3. LibGDX reads the translations and rotations we just set and updates the matrices correctly!
+        instance.calculateTransforms();
+        modelBatch.render(instance, environment);
+    }
+
+    private void updateLimb(ModelInstance instance, String id, float x, float y, float z, Vector3 axis, float angle) {
+        var node = instance.getNode(id);
+        if (node != null) {
+            node.translation.set(x, y, z);
+            node.rotation.setFromAxis(axis, angle);
+        }
     }
 
     // -------------------------
