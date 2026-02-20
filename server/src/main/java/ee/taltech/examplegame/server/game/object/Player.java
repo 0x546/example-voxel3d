@@ -107,15 +107,13 @@ public class Player {
         // Jump / Swim
         if (jump) {
             if (inWater) {
-                if (depth > 0.35f) {
-                    // "Leap" out of water if near surface
-                    vy = JUMP_VELOCITY;
-                } else {
-                    // Smooth swim upward: force is stronger the deeper we are
-                    float forceScale = Math.clamp(depth * 2.0f, 0.1f, 1f);
-                    vy += 45f * forceScale * delta;
-                    if (vy > SWIM_UP_SPEED) vy = SWIM_UP_SPEED;
+                vy += 20f * delta;
+                if (vy > SWIM_UP_SPEED) vy = SWIM_UP_SPEED;
+
+                if (isTouchingSolidBlock(blocks)) {
+                    vy = 0.5f * JUMP_VELOCITY;
                 }
+
             } else if (isOnGround(blocks)) {
                 vy = JUMP_VELOCITY;
             }
@@ -195,6 +193,21 @@ public class Player {
         return false;
     }
 
+    /**
+     * Checks if the player is touching any solid block horizontally.
+     * Used to allow jumping out of water onto land.
+     */
+    private boolean isTouchingSolidBlock(int[][][] blocks) {
+        float padding = 0.1f; // Slight buffer outside the hitbox
+        float checkRadius = PLAYER_WIDTH / 2 + padding;
+
+        // Check 4 points around the player at feet level
+        return (isSolid((int)(x + checkRadius), (int)y, (int)z, blocks)
+            || isSolid((int)(x - checkRadius), (int)y, (int)z, blocks)
+            || isSolid((int)x, (int)y, (int)(z + checkRadius), blocks)
+            || isSolid((int)x, (int)y, (int)(z - checkRadius), blocks));
+    }
+
     private boolean isSolid(int x, int y, int z, int[][][] blocks) {
         if (x < 0 || x >= blocks.length || z < 0 || z >= blocks[0][0].length)
             return true;
@@ -226,13 +239,18 @@ public class Player {
         if (blocks[bx][by][bz] != BlockConstants.MAT_WATER) return 0;
 
         // More precise check against animated waves (matching the water shader)
+        float surfaceY = computeWaterSurfaceY(time, x, z);
+
+        return Math.max(0, surfaceY - y);
+    }
+
+    private float computeWaterSurfaceY(float time, float x, float z) {
         float t = time * WATER_WAVE_SPEED;
         float w1 = (float) Math.sin(x * 1.8f + t) * WATER_WAVE_AMPLITUDE;
         float w2 = (float) Math.sin(z * 2.3f + t * 0.7f + 1.3f) * WATER_WAVE_AMPLITUDE * 0.5f;
         float w3 = (float) Math.sin((x + z) * 3.7f + t * 1.13f + 2.7f) * WATER_WAVE_AMPLITUDE * 0.3f;
-        float surfaceY = WATER_LEVEL - 0.12f + w1 + w2 + w3;
 
-        return Math.max(0, surfaceY - y);
+        return WATER_LEVEL - 0.12f + w1 + w2 + w3;
     }
 
     /**
@@ -272,5 +290,4 @@ public class Player {
     public void dispose() {
         connection.removeListener(movementListener);
     }
-
 }

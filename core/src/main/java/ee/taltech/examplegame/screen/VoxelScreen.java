@@ -219,15 +219,11 @@ public class VoxelScreen extends ScreenAdapter {
 
         if (inputManager.isJump()) {
             if (inWater) {
-                if (depth > 0.35f) {
-                    // "Leap" out of water if near surface
-                    vy = JUMP_VELOCITY;
-                } else {
-                    // Smooth swim upward: force is stronger the deeper we are
-                    // 1.0 at 0.5 blocks depth, near 0 at surface
-                    float forceScale = Math.clamp(depth * 2.0f, 0.1f, 1f);
-                    vy += 45f * forceScale * delta;
-                    if (vy > SWIM_UP_SPEED) vy = SWIM_UP_SPEED;
+                vy += 20f * delta;
+                if (vy > SWIM_UP_SPEED) vy = SWIM_UP_SPEED;
+
+                if (isTouchingSolidBlock()) {
+                    vy = 0.5f * JUMP_VELOCITY;
                 }
             } else if (onGround) {
                 vy = JUMP_VELOCITY;
@@ -331,6 +327,23 @@ public class VoxelScreen extends ScreenAdapter {
             }
         }
         return false;
+    }
+
+    private boolean isTouchingSolidBlock() {
+        int[][][] blocks = voxelWorld.getBlocks();
+        if (blocks == null) return false;
+
+        float x = camera.position.x;
+        float y = camera.position.y - EYE_HEIGHT;
+        float z = camera.position.z;
+
+        float padding = 0.1f;
+        float checkRadius = PLAYER_WIDTH / 2 + padding;
+
+        return (isSolid((int)(x + checkRadius), (int)y, (int)z, blocks)
+            || isSolid((int)(x - checkRadius), (int)y, (int)z, blocks)
+            || isSolid((int)x, (int)y, (int)(z + checkRadius), blocks)
+            || isSolid((int)x, (int)y, (int)(z - checkRadius), blocks));
     }
 
     private boolean isSolid(int x, int y, int z, int[][][] blocks) {
