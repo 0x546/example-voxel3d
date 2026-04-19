@@ -9,6 +9,8 @@ import java.util.Set;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.minlog.Log;
 
+import constant.BlockConstants;
+import static constant.Constants.FALLING_BLOCK_UPDATE_INTERVAL;
 import static constant.Constants.GAME_TICK_RATE;
 import static constant.Constants.PLAYER_COUNT_IN_GAME;
 import static constant.Constants.WATER_LEVEL;
@@ -41,6 +43,11 @@ public class GameInstance extends Thread {
     private final Set<Connection> connections = new HashSet<>(); // Avoid a connection (player) joining the game twice
     @Getter
     private final List<Player> players = new ArrayList<>();
+
+    private float waterUpdateTimer = 0;
+    private static final float WATER_UPDATE_INTERVAL = 0.5f;
+
+    private float fallingBlockTimer = 0;
 
     // Server-side world for physics
     @Getter
@@ -165,6 +172,12 @@ public class GameInstance extends Thread {
             float time = gameStateHandler.getGameTime();
             players.forEach(p -> p.update(finalDelta, world, time));
 
+            // update water flow
+            updateWaterFlow(finalDelta);
+
+            // update falling blocks
+            updateFallingBlocks(finalDelta);
+
             // construct gameStateMessage
             var gameStateMessage = gameStateHandler.getGameStateMessage(players);
             // send the state of current game to all connected clients
@@ -191,4 +204,93 @@ public class GameInstance extends Thread {
             }
         }
     }
+
+    private void updateWaterFlow(float delta) {
+        waterUpdateTimer += delta;
+        if (waterUpdateTimer < WATER_UPDATE_INTERVAL) return;
+        waterUpdateTimer = 0;
+
+        List<BlockChange> changes = new ArrayList<>();
+        processWorldBlocks((worldX, worldY, worldZ, mat) -> {
+            if (mat == BlockConstants.MAT_WATER) {
+                // 1. Air directly below water becomes water
+                checkAndAddWaterChange(worldX, worldY - 1, worldZ, changes);
+
+                // 2. Air next to water becomes water if non-air is under it
+                checkAndAddHorizontalWaterFlow(worldX + 1, worldY, worldZ, changes);
+                checkAndAddHorizontalWaterFlow(worldX - 1, worldY, worldZ, changes);
+                checkAndAddHorizontalWaterFlow(worldX, worldY, worldZ + 1, changes);
+                checkAndAddHorizontalWaterFlow(worldX, worldY, worldZ - 1, changes);
+            }
+        });
+
+        for (BlockChange change : changes) {
+            handleBlockChange(null, change.x, change.y, change.z, BlockConstants.MAT_WATER);
+        }
+    }
+
+    private void updateFallingBlocks(float delta) {
+        fallingBlockTimer += delta;
+        if (fallingBlockTimer < FALLING_BLOCK_UPDATE_INTERVAL) return;
+        fallingBlockTimer = 0;
+
+        List<BlockChange> changes = new ArrayList<>();
+        processWorldBlocks((worldX, worldY, worldZ, mat) -> {
+            if (mat == BlockConstants.MAT_SAND) {
+                int below = world.getBlock(worldX, worldY - 1, worldZ);
+                if (below == BlockConstants.MAT_AIR || below == BlockConstants.MAT_WATER) {
+                    changes.add(new BlockChange(worldX, worldY, worldZ, BlockConstants.MAT_AIR));
+                    changes.add(new BlockChange(worldX, worldY - 1, worldZ, BlockConstants.MAT_SAND));
+                }
+            }
+        });
+
+        for (BlockChange change : changes) {
+            handleBlockChange(null, change.x, change.y, change.z, change.type);
+        }
+    }
+
+    private void processWorldBlocks(BlockProcessor processor) {
+        for (Chunk chunk : getActiveChunksSafe()) {
+            for (int x = 0; x < Chunk.SIZE_X; x++) {
+                for (int z = 0; z < Chunk.SIZE_Z; z++) {
+                    for (int y = 1; y < Chunk.SIZE_Y; y++) {
+                        int worldX = chunk.getChunkX() * Chunk.SIZE_X + x;
+                        int worldZ = chunk.getChunkZ() * Chunk.SIZE_Z + z;
+                        int mat = chunk.getBlocks()[x][y][z];
+                        processor.process(worldX, y, worldZ, mat);
+                    }
+                }
+            }
+        }
+    }
+
+    @FunctionalInterface
+    private interface BlockProcessor {
+        void process(int x, int y, int z, int mat);
+    }
+
+    private List<Chunk> getActiveChunksSafe() {
+        synchronized (this) {
+            return new ArrayList<>(world.getChunks());
+        }
+    }
+
+    private void checkAndAddWaterChange(int x, int y, int z, List<BlockChange> changes) {
+        if (y < 0) return;
+        if (world.getBlock(x, y, z) == BlockConstants.MAT_AIR) {
+            changes.add(new BlockChange(x, y, z, BlockConstants.MAT_WATER));
+        }
+    }
+
+    private void checkAndAddHorizontalWaterFlow(int x, int y, int z, List<BlockChange> changes) {
+        if (world.getBlock(x, y, z) == BlockConstants.MAT_AIR) {
+            int below = world.getBlock(x, y - 1, z);
+            if (below != BlockConstants.MAT_AIR && below != -1) { // block below is solid/water
+                changes.add(new BlockChange(x, y, z, BlockConstants.MAT_WATER));
+            }
+        }
+    }
+
+    private record BlockChange(int x, int y, int z, int type) {}
 }

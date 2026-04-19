@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.1] - Water Physics & Rendering Enhancements (Unreleased)
+
+### Features
+- **Dynamic Water Flow:** Formulated a chunk-aware water update sub-loop inside the server handling automated 3D fluid expansion according to a priority downwards-vector framework. Added concurrent thread protections for global modifications.
+- **Gravity Blocks:** Implemented `updateFallingBlocks` behavior simulating sand physics.
+- **Enhanced Procedural Shader:** Refined global underwater tinting algorithms to explicitly verify positional block submersion states using binary markers mapped in vertex textures (`a_texCoord1.y`) instead of an absolute world-plane Y-value limit.
+
+### Technical & System Improvements
+- **Block Iteration Restructure:** Consolidated heavily nested x/y/z world loops traversing global bounds inside `GameInstance` into a clean single-method approach (`processWorldBlocks`) utilizing Java `@FunctionalInterface` interfaces.
+- **Input Robustness:** Stopped UI tables in `TitleScreen` from constantly regenerating their memory references resolving undetected click-events.
+
+### Fixes
+- **Render Pipeline Layering:** Fixed culling logic hiding opaque models when peering through liquid surfaces. Split the master rendering loop into distinct passes separating opaque geometry from transparent. Incorporated `glDepthMask(false)` guaranteeing subsequent semi-opaque instances won't overwrite local z-buffers hiding other elements (like the Pause Menu).
+
 ## [1.2.0] - Creative Mode & New Procedural Blocks (2026-04-19)
 
 ### Features

@@ -188,7 +188,9 @@ public class VoxelScreen extends ScreenAdapter {
         // --- Rendering ---
         clearScreen();
 
-        voxelWorld.render(camera, underwater);
+        voxelWorld.renderOpaque(camera, underwater);
+
+        renderOtherPlayers(delta);
 
         if (hasTargetBlock && !underwater) {
             Gdx.gl.glEnable(GL20.GL_BLEND);
@@ -208,7 +210,11 @@ public class VoxelScreen extends ScreenAdapter {
             Gdx.gl.glDisable(GL20.GL_BLEND);
         }
 
-        renderOtherPlayers(delta);
+        voxelWorld.renderTransparent(camera, underwater);
+
+        // Turn off depth testing and culling for 2D UI elements
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
+        Gdx.gl.glDisable(GL20.GL_CULL_FACE);
 
         hud.render();
 
@@ -344,9 +350,11 @@ public class VoxelScreen extends ScreenAdapter {
             float py = physicsState.getY();
             float pz = physicsState.getZ();
 
-                boolean intersectsX = (bx < px + 0.3f) && (bx + 1 > px - 0.3f);
-                boolean intersectsY = (by < py + 1.8f) && (by + 1 > py - 0.1f);
-                boolean intersectsZ = (bz < pz + 0.3f) && (bz + 1 > pz - 0.3f);
+            float yMargin = (physicsState.getVy() < 0) ? -0.1f : 0.0f;
+
+            boolean intersectsX = (bx < px + 0.3f) && (bx + 1 > px - 0.3f);
+            boolean intersectsY = (by < py + 1.8f) && (by + 1 > py + yMargin);
+            boolean intersectsZ = (bz < pz + 0.3f) && (bz + 1 > pz - 0.3f);
 
             if (!(intersectsX && intersectsY && intersectsZ)) {
                 int selectedType = buildableBlocks[selectedBlockIndex];

@@ -19,7 +19,6 @@ import static constant.Colors.WOOD;
 import static constant.Colors.SAND;
 import static constant.Colors.BRICK;
 import static constant.Colors.GLASS;
-import static constant.Constants.WATER_LEVEL;
 import static constant.Constants.WATER_WAVE_AMPLITUDE;
 import static constant.Constants.WATER_WAVE_SPEED;
 import ee.taltech.examplegame.shared.world.Chunk;
@@ -104,7 +103,7 @@ public class ProceduralVoxelWorld implements Disposable {
         chunkMeshes.put(key, mp);
     }
 
-    public void render(Camera camera, boolean underwater) {
+    public void renderOpaque(Camera camera, boolean underwater) {
         float delta = Gdx.graphics.getDeltaTime();
         time += delta;
 
@@ -115,8 +114,20 @@ public class ProceduralVoxelWorld implements Disposable {
         Gdx.gl.glCullFace(GL20.GL_BACK);
 
         renderOpaquePass(camera, underwater);
-        renderTransparentPass();
+    }
+
+    public void renderTransparent(Camera camera, boolean underwater) {
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
+        Gdx.gl.glDepthFunc(GL20.GL_LEQUAL);
+        Gdx.gl.glEnable(GL20.GL_CULL_FACE);
+        Gdx.gl.glCullFace(GL20.GL_BACK);
+
+        Gdx.gl.glDepthMask(false);
+
         renderWaterPass(camera, underwater);
+        renderTransparentPass();
+
+        Gdx.gl.glDepthMask(true);
     }
 
     private void renderOpaquePass(Camera camera, boolean underwater) {
@@ -125,7 +136,6 @@ public class ProceduralVoxelWorld implements Disposable {
         shader.setUniformMatrix("u_projView", camera.combined);
         shader.setUniformf("u_lightDir", -0.5f, -1f, -0.3f);
         shader.setUniformi("u_underwater", underwater ? 1 : 0);
-        shader.setUniformf("u_waterLevel", WATER_LEVEL);
         shader.setUniformf("u_time", time);
         shader.setUniformf("u_waveAmp", WATER_WAVE_AMPLITUDE);
         shader.setUniformf("u_waveSpeed", WATER_WAVE_SPEED);

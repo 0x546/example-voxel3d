@@ -9,8 +9,7 @@ import lombok.Setter;
 
 public class VoxelHud {
     private final ShapeRenderer shapeRenderer;
-    @Setter
-    private int selectedBlock = BlockConstants.MAT_DIRT;
+    @Setter private int selectedBlock = BlockConstants.MAT_DIRT;
     private int[] blocks = {BlockConstants.MAT_DIRT, BlockConstants.MAT_STONE, BlockConstants.MAT_WOOD};
 
     public VoxelHud() {

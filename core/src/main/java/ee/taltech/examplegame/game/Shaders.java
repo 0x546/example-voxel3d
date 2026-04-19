@@ -20,13 +20,14 @@ public final class Shaders {
         attribute vec3 a_position;
         attribute vec3 a_normal;
         attribute vec2 a_texCoord0; // Unused in this specific shader, but required by Mesh
-        attribute vec2 a_texCoord1; // Holds material ID in .x
+        attribute vec2 a_texCoord1; // Holds material ID in .x, submerged flag in .y
 
         uniform mat4 u_projView;
 
         varying vec3 v_worldPos;
         varying vec3 v_normal;
         varying float v_matId;
+        varying float v_submerged;
 
         void main() {
             v_worldPos = a_position;
@@ -35,6 +36,7 @@ public final class Shaders {
             // Unpack material ID, which was encoded as a float in the range [0, 255] in a_texCoord1.x
             // Small offset is added to ensure it rounds correctly when converted back to int in the fragment shader.
             v_matId = (a_texCoord1.x * 255.0) + 0.1;
+            v_submerged = a_texCoord1.y;
 
             gl_Position = u_projView * vec4(a_position, 1.0);
         }
@@ -52,6 +54,7 @@ public final class Shaders {
         varying vec3 v_worldPos;
         varying vec3 v_normal;
         varying float v_matId;
+        varying float v_submerged;
 
         uniform vec3 u_lightDir;
         uniform int u_underwater;
@@ -223,15 +226,9 @@ public final class Shaders {
                 gl_FragColor = vec4(finalColor, 0.4);
             } else {
                 // --- Underwater tinting for solid blocks ---
-                // Calculate wave height at this horizontal position
-                float t = u_time * u_waveSpeed;
-                float w1 = sin(v_worldPos.x * 1.8 + t) * u_waveAmp;
-                float w2 = sin(v_worldPos.z * 2.3 + t * 0.7 + 1.3) * u_waveAmp * 0.5;
-                float w3 = sin((v_worldPos.x + v_worldPos.z) * 3.7 + t * 1.13 + 2.7) * u_waveAmp * 0.3;
-                float surfaceY = u_waterLevel - 0.12 + w1 + w2 + w3;
-
-                // Apply tint if fragment is below water surface
-                if (v_worldPos.y < surfaceY) {
+                // We use the encoded submerged flag (set if block above is water)
+                // combined with the global underwater camera state.
+                if (v_submerged > 0.5 || u_underwater == 1) {
                     finalColor = mix(finalColor, u_mat_water, 0.35);
                 }
                 gl_FragColor = vec4(finalColor, 1.0);

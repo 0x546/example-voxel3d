@@ -29,6 +29,8 @@ public class TitleScreen extends ScreenAdapter {
     private final Stage stage;
     private final Label statusLabel;
     private float pollTimer = 0f;
+    private boolean lastInstanceRunning = false;
+    private int lastPlayerCount = -1;
     private final TextButton continueButton;
     private final TextButton newGameButton;
     private final Listener networkListener;
@@ -73,26 +75,7 @@ public class TitleScreen extends ScreenAdapter {
             @Override
             public void received(Connection connection, Object object) {
                 if (object instanceof ServerStatusResponseMessage response) {
-                    Gdx.app.postRunnable(() -> {
-                        table.clearChildren();
-                        table.add(statusLabel).padBottom(20).row();
-
-                        if (response.isInstanceRunning()) {
-                            statusLabel.setText("Players in game: " + response.getPlayerCount());
-                            table.add(continueButton).padBottom(20).row();
-
-                            if (response.getPlayerCount() == 0) {
-                                newGameButton.setText("Reset World");
-                                table.add(newGameButton).padBottom(20).row();
-                            }
-                        } else {
-                            statusLabel.setText("No active instance.");
-                            newGameButton.setText("New Game");
-                            table.add(newGameButton).padBottom(20).row();
-                        }
-
-                        table.add(exitButton);
-                    });
+                    Gdx.app.postRunnable(() -> updateUI(response, table, exitButton));
                 }
             }
         };
@@ -102,6 +85,34 @@ public class TitleScreen extends ScreenAdapter {
         if (ServerConnection.getInstance().getClient().isConnected()) {
             ServerConnection.getInstance().getClient().sendTCP(new ServerStatusRequestMessage());
         }
+    }
+
+    private void updateUI(ServerStatusResponseMessage response, Table table, TextButton exitButton) {
+        if (response.isInstanceRunning() == lastInstanceRunning
+            && response.getPlayerCount() == lastPlayerCount) {
+            return; // No UI change needed
+        }
+        lastInstanceRunning = response.isInstanceRunning();
+        lastPlayerCount = response.getPlayerCount();
+
+        table.clearChildren();
+        table.add(statusLabel).padBottom(20).row();
+
+        if (response.isInstanceRunning()) {
+            statusLabel.setText("Players in game: " + response.getPlayerCount());
+            table.add(continueButton).padBottom(20).row();
+
+            if (response.getPlayerCount() == 0) {
+                newGameButton.setText("Reset World");
+                table.add(newGameButton).padBottom(20).row();
+            }
+        } else {
+            statusLabel.setText("No active instance.");
+            newGameButton.setText("New Game");
+            table.add(newGameButton).padBottom(20).row();
+        }
+
+        table.add(exitButton);
     }
 
     /**

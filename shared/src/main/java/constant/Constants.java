@@ -56,6 +56,9 @@ public class Constants {
     public static final float WATER_WAVE_AMPLITUDE = 0.05f;
     public static final float WATER_WAVE_SPEED = 0.5f;
 
+    // --- falling blocks constants ---
+    public static final float FALLING_BLOCK_UPDATE_INTERVAL = 0.1f;
+
     // --- voxel mesh builder constants ---
     public static final int MAX_VERTICES = 32000;
     public static final int FLOATS_PER_VERTEX = 10;

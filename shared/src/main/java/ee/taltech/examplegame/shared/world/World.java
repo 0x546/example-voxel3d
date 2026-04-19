@@ -1,5 +1,6 @@
 package ee.taltech.examplegame.shared.world;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import constant.BlockConstants;
@@ -17,6 +18,10 @@ public class World {
 
     public boolean hasChunk(int chunkX, int chunkZ) {
         return chunks.containsKey(getChunkKey(chunkX, chunkZ));
+    }
+
+    public Collection<Chunk> getChunks() {
+        return chunks.values();
     }
 
     public int getBlock(int x, int y, int z) {

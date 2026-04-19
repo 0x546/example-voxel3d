@@ -115,9 +115,12 @@ public class VoxelMeshBuilder {
         int worldX = ctx.chunk.getChunkX() * Chunk.SIZE_X + localX;
         int worldZ = ctx.chunk.getChunkZ() * Chunk.SIZE_Z + localZ;
 
+        int topMat = ctx.world.getBlock(worldX, y + 1, worldZ);
+        float isSubmerged = (topMat == BlockConstants.MAT_WATER) ? 1.0f : 0.0f;
+
         for (Face face : Face.values()) {
             if (shouldDrawFace(ctx.world, worldX, y, worldZ, face, mat)) {
-                target.addFace(worldX, y, worldZ, face, mat);
+                target.addFace(worldX, y, worldZ, face, mat, isSubmerged);
             }
         }
     }
@@ -171,7 +174,7 @@ public class VoxelMeshBuilder {
          * Adds a quad for the given face at voxel (x,y,z) with material ID.
          * Encodes position, normal, UVs and material into the vertex data.
          */
-        public void addFace(int x, int y, int z, Face face, int matId) {
+        public void addFace(int x, int y, int z, Face face, int matId, float isSubmerged) {
             int startVertex = verts.size / FLOATS_PER_VERTEX;
 
             if (startVertex + 4 > MAX_VERTICES) {
@@ -201,7 +204,7 @@ public class VoxelMeshBuilder {
 
                 // Material
                 verts.add(matEnc);
-                verts.add(0f);
+                verts.add(isSubmerged);
             }
 
             short base = (short) startVertex;
