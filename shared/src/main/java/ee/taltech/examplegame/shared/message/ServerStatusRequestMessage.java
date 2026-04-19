@@ -1,4 +1,4 @@
-package message;
+package ee.taltech.examplegame.shared.message;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;

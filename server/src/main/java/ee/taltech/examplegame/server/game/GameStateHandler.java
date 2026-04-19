@@ -3,8 +3,8 @@ package ee.taltech.examplegame.server.game;
 import ee.taltech.examplegame.server.game.object.Player;
 import lombok.Getter;
 import lombok.Setter;
-import message.GameStateMessage;
-import message.dto.PlayerState;
+import ee.taltech.examplegame.shared.message.GameStateMessage;
+import ee.taltech.examplegame.shared.message.dto.PlayerState;
 
 import java.util.ArrayList;
 import java.util.List;

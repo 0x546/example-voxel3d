@@ -10,10 +10,10 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import static ee.taltech.examplegame.component.ButtonComponents.getButton;
 
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
-import constant.Constants;
+import ee.taltech.examplegame.shared.constant.Constants;
 import ee.taltech.examplegame.network.ServerConnection;
-import message.GameLeaveMessage;
-import message.PlayerRespawnMessage;
+import ee.taltech.examplegame.shared.message.GameLeaveMessage;
+import ee.taltech.examplegame.shared.message.PlayerRespawnMessage;
 import lombok.Getter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Preferences;

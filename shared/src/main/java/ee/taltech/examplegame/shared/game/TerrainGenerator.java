@@ -1,8 +1,8 @@
 package ee.taltech.examplegame.shared.game;
 
-import constant.BlockConstants;
+import ee.taltech.examplegame.shared.constant.BlockConstants;
 import ee.taltech.examplegame.shared.world.Chunk;
-import static constant.Constants.DIRT_LAYER_THICKNESS;
+import static ee.taltech.examplegame.shared.constant.Constants.DIRT_LAYER_THICKNESS;
 
 /**
  * Generates base terrain heights and fills a Chunk with

@@ -13,10 +13,10 @@ import com.badlogic.gdx.graphics.Color;
 import static ee.taltech.examplegame.component.ButtonComponents.getButton;
 import ee.taltech.examplegame.network.ServerConnection;
 import ee.taltech.examplegame.util.Font;
-import message.GameJoinMessage;
-import message.GenerateWorldMessage;
-import message.ServerStatusRequestMessage;
-import message.ServerStatusResponseMessage;
+import ee.taltech.examplegame.shared.message.GameJoinMessage;
+import ee.taltech.examplegame.shared.message.GenerateWorldMessage;
+import ee.taltech.examplegame.shared.message.ServerStatusRequestMessage;
+import ee.taltech.examplegame.shared.message.ServerStatusResponseMessage;
 
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;

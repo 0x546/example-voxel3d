@@ -6,9 +6,9 @@ import com.badlogic.gdx.graphics.VertexAttributes;
 import com.badlogic.gdx.utils.FloatArray;
 import com.badlogic.gdx.utils.ShortArray;
 
-import constant.BlockConstants;
+import ee.taltech.examplegame.shared.constant.BlockConstants;
 
-import static constant.Constants.*;
+import static ee.taltech.examplegame.shared.constant.Constants.*;
 
 import ee.taltech.examplegame.shared.world.Chunk;
 import ee.taltech.examplegame.shared.world.World;

@@ -1,4 +1,4 @@
-package constant;
+package ee.taltech.examplegame.shared.constant;
 
 /**
  * Centered location for all material colors used in the voxel engine.

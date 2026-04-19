@@ -3,7 +3,7 @@ package ee.taltech.examplegame.network.listener;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import ee.taltech.examplegame.game.GameStateManager;
-import message.GameStateMessage;
+import ee.taltech.examplegame.shared.message.GameStateMessage;
 
 /**
  * Listener for handling incoming GameStateMessages from the server.
@@ -28,16 +28,6 @@ public class GameStateMessageListener extends Listener {
         if (object instanceof GameStateMessage gameStateMessage) {
             // Update the game state
             gameStateManager.setLatestGameStateMessage(gameStateMessage);
-            gameStateMessage.getPlayerStates().forEach(playerState -> {
-                // Ignore our own player
-                if (playerState.getId() == connection.getID())
-                    return;
-
-                // Sync remote players
-                // In a real game, you would interpolate here
-                // For now, we need a way to access the remote players list in the client
-                // game/screen
-            });
         }
     }
 }

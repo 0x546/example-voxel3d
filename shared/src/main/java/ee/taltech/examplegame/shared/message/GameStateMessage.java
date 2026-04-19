@@ -1,9 +1,9 @@
-package message;
+package ee.taltech.examplegame.shared.message;
 
 import java.util.List;
 
 import lombok.Data;
-import message.dto.PlayerState;
+import ee.taltech.examplegame.shared.message.dto.PlayerState;
 
 @Data
 public class GameStateMessage {

@@ -1,4 +1,4 @@
-package message.dto;
+package ee.taltech.examplegame.shared.message.dto;
 
 import lombok.Data;
 

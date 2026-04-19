@@ -9,19 +9,20 @@ import java.util.Set;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.minlog.Log;
 
-import constant.BlockConstants;
-import static constant.Constants.FALLING_BLOCK_UPDATE_INTERVAL;
-import static constant.Constants.GAME_TICK_RATE;
-import static constant.Constants.PLAYER_COUNT_IN_GAME;
-import static constant.Constants.WATER_LEVEL;
+import ee.taltech.examplegame.shared.constant.BlockConstants;
+import static ee.taltech.examplegame.shared.constant.Constants.FALLING_BLOCK_UPDATE_INTERVAL;
+import static ee.taltech.examplegame.shared.constant.Constants.GAME_TICK_RATE;
+import static ee.taltech.examplegame.shared.constant.Constants.PLAYER_COUNT_IN_GAME;
+import static ee.taltech.examplegame.shared.constant.Constants.WATER_LEVEL;
 import ee.taltech.examplegame.server.game.object.Player;
 import ee.taltech.examplegame.server.listener.ServerListener;
 import ee.taltech.examplegame.shared.game.TerrainGenerator;
 import ee.taltech.examplegame.shared.game.TreeGenerator;
+import ee.taltech.examplegame.shared.message.BlockChangeMessage;
+import ee.taltech.examplegame.shared.message.ChunkDataMessage;
 import ee.taltech.examplegame.shared.world.Chunk;
 import ee.taltech.examplegame.shared.world.World;
 import lombok.Getter;
-import message.ChunkDataMessage;
 
 /**
  * Represents the game logic and server-side management of the game instance.
@@ -89,7 +90,7 @@ public class GameInstance extends Thread {
     public synchronized void handleBlockChange(Connection connection, int x, int y, int z, int blockType) {
         world.setBlock(x, y, z, blockType);
 
-        message.BlockChangeMessage msg = new message.BlockChangeMessage(x, y, z, blockType);
+        BlockChangeMessage msg = new BlockChangeMessage(x, y, z, blockType);
         connections.forEach(conn -> {
             if (conn != connection) {
                 conn.sendTCP(msg);

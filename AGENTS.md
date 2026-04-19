@@ -26,7 +26,8 @@ The application is split into three main modules:
 
 - **Run the Server**: Execute `./gradlew server:run` or launch `ServerLauncher.java` in the `server` module via IDE.
 - **Run the Client**: Execute `./gradlew lwjgl3:run` or start `Lwjgl3Launcher.java` in the `lwjgl3` module. *Note: When running locally, start the Server before any client.*
-- **Build the Game**: Use `./gradlew lwjgl3:jar` to compile a runnable Java archive (JAR) for distribution. The output is in `lwjgl3/build/libs`.
+- **Build the Game/Client**: Use `./gradlew lwjgl3:jar` to compile a runnable Java archive (JAR) for distribution. The output is in `lwjgl3/build/libs`.
+- **Build the Server**: Use `./gradlew server:jar` to compile a runnable server archive (JAR) for distribution. The output is in `server/build/libs`.
 - **Clean the Build**: Use `./gradlew clean` to clean cached build artifacts.
 
 ## File References

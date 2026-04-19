@@ -3,8 +3,8 @@ package ee.taltech.examplegame.screen.overlay;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import constant.BlockConstants;
-import constant.Colors;
+import ee.taltech.examplegame.shared.constant.BlockConstants;
+import ee.taltech.examplegame.shared.constant.Colors;
 import lombok.Setter;
 
 public class VoxelHud {

@@ -3,7 +3,7 @@ package ee.taltech.examplegame.shared.world;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import constant.BlockConstants;
+import ee.taltech.examplegame.shared.constant.BlockConstants;
 
 public class World {
     private final Map<String, Chunk> chunks = new HashMap<>();

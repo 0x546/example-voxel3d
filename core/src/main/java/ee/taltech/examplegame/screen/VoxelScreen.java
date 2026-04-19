@@ -19,13 +19,13 @@ import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector3;
 
-import static constant.Constants.CAMERA_FAR;
-import static constant.Constants.CAMERA_FOV;
-import static constant.Constants.CAMERA_NEAR;
-import static constant.Constants.EYE_HEIGHT;
-import static constant.Constants.MOUSE_SENSITIVITY;
-import static constant.Constants.PLAYER_INTERPOLATION_SPEED;
-import static constant.Constants.PLAYER_SNAP_DISTANCE;
+import static ee.taltech.examplegame.shared.constant.Constants.CAMERA_FAR;
+import static ee.taltech.examplegame.shared.constant.Constants.CAMERA_FOV;
+import static ee.taltech.examplegame.shared.constant.Constants.CAMERA_NEAR;
+import static ee.taltech.examplegame.shared.constant.Constants.EYE_HEIGHT;
+import static ee.taltech.examplegame.shared.constant.Constants.MOUSE_SENSITIVITY;
+import static ee.taltech.examplegame.shared.constant.Constants.PLAYER_INTERPOLATION_SPEED;
+import static ee.taltech.examplegame.shared.constant.Constants.PLAYER_SNAP_DISTANCE;
 
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
@@ -33,15 +33,16 @@ import ee.taltech.examplegame.game.GameStateManager;
 import ee.taltech.examplegame.game.PlayerInputManager;
 import ee.taltech.examplegame.game.ProceduralVoxelWorld;
 import ee.taltech.examplegame.network.ServerConnection;
-import ee.taltech.examplegame.physics.VoxelPhysics;
 import ee.taltech.examplegame.screen.overlay.PauseOverlay;
 import ee.taltech.examplegame.screen.overlay.VoxelHud;
-import ee.taltech.examplegame.util.PlayerModelGenerator;
-import message.dto.PlayerState;
-import message.ChunkRequestMessage;
-import message.ChunkDataMessage;
+import ee.taltech.examplegame.shared.message.dto.PlayerState;
+import ee.taltech.examplegame.shared.message.BlockChangeMessage;
+import ee.taltech.examplegame.shared.constant.BlockConstants;
+import ee.taltech.examplegame.shared.message.ChunkRequestMessage;
+import ee.taltech.examplegame.shared.message.ChunkDataMessage;
+import ee.taltech.examplegame.shared.physics.VoxelPhysics;
 import ee.taltech.examplegame.shared.world.Chunk;
-import constant.BlockConstants;
+import ee.taltech.examplegame.util.PlayerModelGenerator;
 
 public class VoxelScreen extends ScreenAdapter {
 
@@ -134,7 +135,7 @@ public class VoxelScreen extends ScreenAdapter {
             public void received(Connection connection, Object object) {
                 if (object instanceof ChunkDataMessage cDM) {
                     Gdx.app.postRunnable(() -> voxelWorld.addChunk(cDM.getChunk()));
-                } else if (object instanceof message.BlockChangeMessage bcm) {
+                } else if (object instanceof BlockChangeMessage bcm) {
                     Gdx.app.postRunnable(() -> voxelWorld.setBlock(bcm.getX(), bcm.getY(), bcm.getZ(), bcm.getBlockType()));
                 }
             }
@@ -333,7 +334,7 @@ public class VoxelScreen extends ScreenAdapter {
 
             if (by > 0) {
                 voxelWorld.setBlock(bx, by, bz, BlockConstants.MAT_AIR);
-                ServerConnection.getInstance().getClient().sendTCP(new message.BlockChangeMessage(bx, by, bz, BlockConstants.MAT_AIR));
+                ServerConnection.getInstance().getClient().sendTCP(new BlockChangeMessage(bx, by, bz, BlockConstants.MAT_AIR));
                 blockActionTimer = 0f;
             }
         }
@@ -359,7 +360,7 @@ public class VoxelScreen extends ScreenAdapter {
             if (!(intersectsX && intersectsY && intersectsZ)) {
                 int selectedType = buildableBlocks[selectedBlockIndex];
                 voxelWorld.setBlock(bx, by, bz, selectedType);
-                ServerConnection.getInstance().getClient().sendTCP(new message.BlockChangeMessage(bx, by, bz, selectedType));
+                ServerConnection.getInstance().getClient().sendTCP(new BlockChangeMessage(bx, by, bz, selectedType));
                 blockActionTimer = 0f;
             }
         }

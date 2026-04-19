@@ -2,19 +2,19 @@ package ee.taltech.examplegame.server.game.object;
 
 import com.esotericsoftware.kryonet.Connection;
 
-import static constant.Constants.PLAYER_LIVES_COUNT;
-import static constant.Constants.PLAYER_SPAWN_X;
-import static constant.Constants.PLAYER_SPAWN_Y;
-import static constant.Constants.PLAYER_SPAWN_Z;
-import static constant.Constants.VOID_LEVEL;
-import ee.taltech.examplegame.physics.VoxelPhysics;
+import static ee.taltech.examplegame.shared.constant.Constants.PLAYER_LIVES_COUNT;
+import static ee.taltech.examplegame.shared.constant.Constants.PLAYER_SPAWN_X;
+import static ee.taltech.examplegame.shared.constant.Constants.PLAYER_SPAWN_Y;
+import static ee.taltech.examplegame.shared.constant.Constants.PLAYER_SPAWN_Z;
+import static ee.taltech.examplegame.shared.constant.Constants.VOID_LEVEL;
+import ee.taltech.examplegame.shared.message.PlayerMovementMessage;
+import ee.taltech.examplegame.shared.message.dto.PlayerState;
+import ee.taltech.examplegame.shared.physics.VoxelPhysics;
 import ee.taltech.examplegame.server.game.GameInstance;
 import ee.taltech.examplegame.server.listener.PlayerMovementListener;
 import ee.taltech.examplegame.shared.world.World;
 import lombok.Getter;
 import lombok.Setter;
-import message.PlayerMovementMessage;
-import message.dto.PlayerState;
 
 /**
  * Server-side representation of a player in the game.

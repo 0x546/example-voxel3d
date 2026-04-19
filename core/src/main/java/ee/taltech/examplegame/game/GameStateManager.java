@@ -5,7 +5,7 @@ import ee.taltech.examplegame.network.ServerConnection;
 import ee.taltech.examplegame.network.listener.GameStateMessageListener;
 import lombok.Getter;
 import lombok.Setter;
-import message.GameStateMessage;
+import ee.taltech.examplegame.shared.message.GameStateMessage;
 
 @Setter
 @Getter

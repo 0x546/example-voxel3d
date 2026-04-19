@@ -3,10 +3,10 @@ package ee.taltech.examplegame.network;
 import com.badlogic.gdx.Gdx;
 import com.esotericsoftware.kryonet.Client;
 
-import static constant.Constants.PORT_TCP;
-import static constant.Constants.PORT_UDP;
-import static constant.Constants.SERVER_IP;
-import static network.KryoHelper.registerClasses;
+import static ee.taltech.examplegame.shared.constant.Constants.PORT_TCP;
+import static ee.taltech.examplegame.shared.constant.Constants.PORT_UDP;
+import static ee.taltech.examplegame.shared.constant.Constants.SERVER_IP;
+import static ee.taltech.examplegame.shared.network.KryoHelper.registerClasses;
 import lombok.Getter;
 
 /**

@@ -2,14 +2,14 @@ package ee.taltech.examplegame.shared.game;
 
 import java.util.Random;
 
-import constant.BlockConstants;
+import ee.taltech.examplegame.shared.constant.BlockConstants;
 import ee.taltech.examplegame.shared.world.Chunk;
-import static constant.Constants.CLEAR_RADIUS;
-import static constant.Constants.LEAF_RADIUS;
-import static constant.Constants.LEAVES_START_OFFSET;
-import static constant.Constants.LEAVES_TOP_OFFSET;
-import static constant.Constants.PLANT_CHANCE;
-import static constant.Constants.TRUNK_HEIGHT;
+import static ee.taltech.examplegame.shared.constant.Constants.CLEAR_RADIUS;
+import static ee.taltech.examplegame.shared.constant.Constants.LEAF_RADIUS;
+import static ee.taltech.examplegame.shared.constant.Constants.LEAVES_START_OFFSET;
+import static ee.taltech.examplegame.shared.constant.Constants.LEAVES_TOP_OFFSET;
+import static ee.taltech.examplegame.shared.constant.Constants.PLANT_CHANCE;
+import static ee.taltech.examplegame.shared.constant.Constants.TRUNK_HEIGHT;
 
 /**
  * Places simple trees iteratively and deterministically across chunks boundaries.

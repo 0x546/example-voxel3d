@@ -1,4 +1,4 @@
-package message;
+package ee.taltech.examplegame.shared.message;
 
 @SuppressWarnings("java:S2094")
 public class GameLeaveMessage {

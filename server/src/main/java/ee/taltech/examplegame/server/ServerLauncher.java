@@ -6,9 +6,9 @@ import ee.taltech.examplegame.server.listener.ServerListener;
 
 import java.io.IOException;
 
-import static constant.Constants.PORT_TCP;
-import static constant.Constants.PORT_UDP;
-import static network.KryoHelper.registerClasses;
+import static ee.taltech.examplegame.shared.constant.Constants.PORT_TCP;
+import static ee.taltech.examplegame.shared.constant.Constants.PORT_UDP;
+import static ee.taltech.examplegame.shared.network.KryoHelper.registerClasses;
 
 /**
  * Launches the server application.

@@ -5,14 +5,15 @@ import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.minlog.Log;
 
 import ee.taltech.examplegame.server.game.GameInstance;
-import message.BlockChangeMessage;
-import message.ChunkRequestMessage;
-import message.GameJoinMessage;
-import message.GameLeaveMessage;
-import message.GenerateWorldMessage;
-import message.PlayerRespawnMessage;
-import message.ServerStatusRequestMessage;
-import message.ServerStatusResponseMessage;
+import ee.taltech.examplegame.shared.constant.Constants;
+import ee.taltech.examplegame.shared.message.BlockChangeMessage;
+import ee.taltech.examplegame.shared.message.ChunkRequestMessage;
+import ee.taltech.examplegame.shared.message.GameJoinMessage;
+import ee.taltech.examplegame.shared.message.GameLeaveMessage;
+import ee.taltech.examplegame.shared.message.GenerateWorldMessage;
+import ee.taltech.examplegame.shared.message.PlayerRespawnMessage;
+import ee.taltech.examplegame.shared.message.ServerStatusRequestMessage;
+import ee.taltech.examplegame.shared.message.ServerStatusResponseMessage;
 
 
 /**
@@ -113,9 +114,9 @@ public class ServerListener extends Listener {
                 .filter(p -> p.getConnection().equals(connection))
                 .findFirst()
                 .ifPresent(p -> {
-                    p.getPhysicsState().setX(constant.Constants.PLAYER_SPAWN_X);
-                    p.getPhysicsState().setY(constant.Constants.PLAYER_SPAWN_Y);
-                    p.getPhysicsState().setZ(constant.Constants.PLAYER_SPAWN_Z);
+                    p.getPhysicsState().setX(Constants.PLAYER_SPAWN_X);
+                    p.getPhysicsState().setY(Constants.PLAYER_SPAWN_Y);
+                    p.getPhysicsState().setZ(Constants.PLAYER_SPAWN_Z);
                     p.getPhysicsState().setVx(0);
                     p.getPhysicsState().setVy(0);
                     p.getPhysicsState().setVz(0);

@@ -4,8 +4,8 @@ import com.badlogic.gdx.Gdx;
 
 import ee.taltech.examplegame.constant.InputConstants;
 import ee.taltech.examplegame.network.ServerConnection;
+import ee.taltech.examplegame.shared.message.PlayerMovementMessage;
 import lombok.Getter;
-import message.PlayerMovementMessage;
 
 /**
  * Handles gathering user input and sending movement messages to the server.

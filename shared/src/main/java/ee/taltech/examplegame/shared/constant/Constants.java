@@ -1,4 +1,4 @@
-package constant;
+package ee.taltech.examplegame.shared.constant;
 
 public class Constants {
     private Constants() {
