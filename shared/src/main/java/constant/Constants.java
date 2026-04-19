@@ -29,9 +29,6 @@ public class Constants {
     public static final float VOID_LEVEL = -10f;
 
     // --- world generation constants ---
-    public static final int WORLD_WIDTH = 24;
-    public static final int WORLD_HEIGHT = 32;
-    public static final int WORLD_DEPTH = 24;
     public static final int WATER_LEVEL = 16;
     public static final int DIRT_LAYER_THICKNESS = 3;
 
@@ -47,10 +44,6 @@ public class Constants {
     public static final int GAME_TICK_RATE = 60;
     public static final int PLAYER_COUNT_IN_GAME = 4;
     public static final int PLAYER_LIVES_COUNT = 50;
-
-    // --- shooting constants ---
-    public static final float BULLET_SPEED = 40f;
-    public static final long BULLET_TIMEOUT_IN_MILLIS = 500L;
 
     // --- rendering constants ---
     public static final float MOUSE_SENSITIVITY = 0.2f;
