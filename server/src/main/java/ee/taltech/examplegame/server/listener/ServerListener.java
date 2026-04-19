@@ -5,10 +5,14 @@ import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.minlog.Log;
 
 import ee.taltech.examplegame.server.game.GameInstance;
-import ee.taltech.examplegame.server.game.object.Player;
+import message.BlockChangeMessage;
 import message.ChunkRequestMessage;
 import message.GameJoinMessage;
+import message.GameLeaveMessage;
 import message.GenerateWorldMessage;
+import message.PlayerRespawnMessage;
+import message.ServerStatusRequestMessage;
+import message.ServerStatusResponseMessage;
 
 
 /**
@@ -61,20 +65,50 @@ public class ServerListener extends Listener {
     public void received(Connection connection, Object object) {
         Log.debug("Received message from client (" + connection.getRemoteAddressTCP().getAddress().getHostAddress() + "): " + object.toString());
 
-        // when a GameJoinMessage is received, the server will add the connection to the game instance
-        // if there is no active instance, a new one is created
-        if (object instanceof GameJoinMessage) {
-            if (game == null) {
-                game = new GameInstance(this, connection);  // Create a new game instance for the first player (connection)
-                game.start();  // Start the Thread, which contains the main game loop
-            } else {
-                game.addConnection(connection);  // Add a second player (connection) if there is enough room in the game
-            }
-        } else if (object instanceof message.GameLeaveMessage) {
-            if (game != null) {
-                game.removeConnection(connection);
-            }
-        } else if ((object instanceof message.PlayerRespawnMessage) && game != null) {
+        if (object instanceof ServerStatusRequestMessage) {
+            handleServerStatusRequest(connection);
+            return;
+        } else if (object instanceof GameJoinMessage) {
+            handleGameJoin(connection);
+        } else if (object instanceof GameLeaveMessage) {
+            handleGameLeave(connection);
+        } else if (object instanceof PlayerRespawnMessage) {
+            handlePlayerRespawn(connection);
+        } else if (object instanceof ChunkRequestMessage req) {
+            handleChunkRequest(connection, req);
+        } else if (object instanceof BlockChangeMessage bcm) {
+            handleBlockChange(connection, bcm);
+        } else if (object instanceof GenerateWorldMessage
+            && handleGenerateWorld(connection)) {
+            return;
+        }
+
+        super.received(connection, object);
+    }
+
+    private void handleServerStatusRequest(Connection connection) {
+        boolean running = game != null;
+        int count = running ? game.getPlayers().size() : 0;
+        connection.sendTCP(new ServerStatusResponseMessage(running, count));
+    }
+
+    private void handleGameJoin(Connection connection) {
+        if (game == null) {
+            game = new GameInstance(this, connection);  // Create a new game instance for the first player (connection)
+            game.start();  // Start the Thread, which contains the main game loop
+        } else {
+            game.addConnection(connection);  // Add a second player (connection) if there is enough room in the game
+        }
+    }
+
+    private void handleGameLeave(Connection connection) {
+        if (game != null) {
+            game.removeConnection(connection);
+        }
+    }
+
+    private void handlePlayerRespawn(Connection connection) {
+        if (game != null) {
             game.getPlayers().stream()
                 .filter(p -> p.getConnection().equals(connection))
                 .findFirst()
@@ -86,17 +120,34 @@ public class ServerListener extends Listener {
                     p.getPhysicsState().setVy(0);
                     p.getPhysicsState().setVz(0);
                 });
-        } else if (object instanceof ChunkRequestMessage req && game != null) {
+        }
+    }
+
+    private void handleChunkRequest(Connection connection, ChunkRequestMessage req) {
+        if (game != null) {
             game.handleChunkRequest(connection, req.getChunkX(), req.getChunkZ());
-        } else if (object instanceof GenerateWorldMessage && game != null) {
-            // Clear state, kick players
-            for (var conn : game.getPlayers().stream().map(Player::getConnection).toList()) {
-                conn.close();
+        }
+    }
+
+    private void handleBlockChange(Connection connection, BlockChangeMessage bcm) {
+        if (game != null) {
+            game.handleBlockChange(connection, bcm.getX(), bcm.getY(), bcm.getZ(), bcm.getBlockType());
+        }
+    }
+
+    private boolean handleGenerateWorld(Connection connection) {
+        if (game != null) {
+            if (!game.getPlayers().isEmpty()) {
+                // Two players clicked "New Game" simultaneously. Server will gracefully redirect the latecomer to simply join the active newly started game!
+                game.addConnection(connection);
+                return true;
             }
+            // Clear dead state
             game.disposeGame();
         }
-
-        super.received(connection, object);
+        game = new GameInstance(this, connection);
+        game.start();
+        return false;
     }
 
     /**

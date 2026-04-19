@@ -27,5 +27,8 @@ public class KryoHelper {
         kryo.register(message.ChunkDataMessage.class);
         kryo.register(message.ChunkRequestMessage.class);
         kryo.register(message.GenerateWorldMessage.class);
+        kryo.register(message.BlockChangeMessage.class);
+        kryo.register(message.ServerStatusRequestMessage.class);
+        kryo.register(message.ServerStatusResponseMessage.class);
     }
 }

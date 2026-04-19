@@ -5,6 +5,8 @@ import java.util.Map;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
@@ -14,6 +16,7 @@ import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector3;
 
 import static constant.Constants.CAMERA_FAR;
@@ -38,6 +41,7 @@ import message.dto.PlayerState;
 import message.ChunkRequestMessage;
 import message.ChunkDataMessage;
 import ee.taltech.examplegame.shared.world.Chunk;
+import constant.BlockConstants;
 
 public class VoxelScreen extends ScreenAdapter {
 
@@ -63,10 +67,39 @@ public class VoxelScreen extends ScreenAdapter {
     private final VoxelPhysics.InputState inputState = new VoxelPhysics.InputState();
 
     private float animationTimer = 0;
-
     private float chunkRequestTimer = 0;
+    private float blockActionTimer = 0;
 
     private final Listener networkListener;
+
+    private final ShapeRenderer shapeRenderer = new ShapeRenderer();
+    private final Vector3 targetBlock = new Vector3();
+    private final Vector3 placeTargetBlock = new Vector3();
+    private boolean hasTargetBlock = false;
+    private int selectedBlockIndex = 0;
+    private final int[] buildableBlocks = {
+        BlockConstants.MAT_DIRT,
+        BlockConstants.MAT_STONE,
+        BlockConstants.MAT_WOOD,
+        BlockConstants.MAT_GRASS,
+        BlockConstants.MAT_LEAVES,
+        BlockConstants.MAT_SAND,
+        BlockConstants.MAT_BRICK,
+        BlockConstants.MAT_GLASS
+    };
+
+    private final InputAdapter gameInputProcessor = new InputAdapter() {
+        @Override
+        public boolean scrolled(float amountX, float amountY) {
+            if (amountY > 0) {
+                selectedBlockIndex = (selectedBlockIndex + 1) % buildableBlocks.length;
+            } else if (amountY < 0) {
+                selectedBlockIndex = (selectedBlockIndex - 1 + buildableBlocks.length) % buildableBlocks.length;
+            }
+            hud.setSelectedBlock(buildableBlocks[selectedBlockIndex]);
+            return true;
+        }
+    };
 
     public VoxelScreen(Game game) {
 
@@ -88,6 +121,7 @@ public class VoxelScreen extends ScreenAdapter {
 
         voxelWorld = new ProceduralVoxelWorld();
         hud = new VoxelHud();
+        hud.setBuildableBlocks(buildableBlocks);
 
         gameStateManager = new GameStateManager();
         inputManager = new PlayerInputManager();
@@ -100,6 +134,8 @@ public class VoxelScreen extends ScreenAdapter {
             public void received(Connection connection, Object object) {
                 if (object instanceof ChunkDataMessage cDM) {
                     Gdx.app.postRunnable(() -> voxelWorld.addChunk(cDM.getChunk()));
+                } else if (object instanceof message.BlockChangeMessage bcm) {
+                    Gdx.app.postRunnable(() -> voxelWorld.setBlock(bcm.getX(), bcm.getY(), bcm.getZ(), bcm.getBlockType()));
                 }
             }
         };
@@ -108,16 +144,20 @@ public class VoxelScreen extends ScreenAdapter {
         pauseOverlay = new PauseOverlay(() -> {
             paused = false;
             Gdx.input.setCursorCatched(true);
-            Gdx.input.setInputProcessor(null);
+            Gdx.input.setInputProcessor(gameInputProcessor);
         }, () -> {
             this.dispose();
             game.setScreen(new TitleScreen(game));
         });
+
+        Gdx.input.setInputProcessor(gameInputProcessor);
+        hud.setSelectedBlock(buildableBlocks[selectedBlockIndex]);
     }
 
     @Override
     public void render(float delta) {
         animationTimer += delta;
+        blockActionTimer += delta;
         // Always update input state (so ESC/clicks are caught)
         inputManager.updateNoSend(paused);
 
@@ -127,6 +167,9 @@ public class VoxelScreen extends ScreenAdapter {
             // Local-only updates
             updateCamera();         // handles mouse-driven yaw/pitch & camera.direction
             updatePhysics(delta);   // handles movement input, physics, and camera position
+
+            handleBlockInteraction();
+
             inputManager.update(yaw, pitch); // send to server / networked state
             if (inputManager.isActionPressed()) {
                 Gdx.input.setCursorCatched(true);
@@ -146,6 +189,24 @@ public class VoxelScreen extends ScreenAdapter {
         clearScreen();
 
         voxelWorld.render(camera, underwater);
+
+        if (hasTargetBlock && !underwater) {
+            Gdx.gl.glEnable(GL20.GL_BLEND);
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+            shapeRenderer.setProjectionMatrix(camera.combined);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            shapeRenderer.setColor(0, 0, 0, 0.4f);
+
+            float x = targetBlock.x;
+            float y = targetBlock.y;
+            float z = targetBlock.z;
+
+            // Draw box lines
+            shapeRenderer.box(x, y, z + 1, 1, 1, 1);
+
+            shapeRenderer.end();
+            Gdx.gl.glDisable(GL20.GL_BLEND);
+        }
 
         renderOtherPlayers(delta);
 
@@ -173,7 +234,7 @@ public class VoxelScreen extends ScreenAdapter {
             if (paused) {
                 paused = false;
                 Gdx.input.setCursorCatched(true);
-                Gdx.input.setInputProcessor(null);
+                Gdx.input.setInputProcessor(gameInputProcessor);
             } else {
                 paused = true;
                 Gdx.input.setCursorCatched(false);
@@ -209,7 +270,97 @@ public class VoxelScreen extends ScreenAdapter {
         }
     }
 
+    private void handleBlockInteraction() {
+        findTargetBlock();
+
+        if (hasTargetBlock && Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
+            handleBlockBreaking();
+        } else if (hasTargetBlock
+            && Gdx.input.isButtonPressed(Input.Buttons.RIGHT)
+            && blockActionTimer >= 0.2f) {
+            handleBlockPlacement();
+        }
+
+        // Reset timer if buttons are released so initial click is instant
+        if (!Gdx.input.isButtonPressed(Input.Buttons.LEFT)
+            && !Gdx.input.isButtonPressed(Input.Buttons.RIGHT)
+            && blockActionTimer < 0.2f && blockActionTimer > 0) {
+            // Keep it at 0.2f so next click is instant
+            blockActionTimer = 0.2f;
+        }
+    }
+
+    private void findTargetBlock() {
+        hasTargetBlock = false;
+        Vector3 rayStart = camera.position.cpy();
+        Vector3 rayDir = camera.direction.cpy().nor();
+
+        float maxDistance = 5.0f;
+        float step = 0.05f;
+
+        Vector3 currentPos = rayStart.cpy();
+        Vector3 previousPos = currentPos.cpy();
+
+        for (float d = 0; d < maxDistance; d += step) {
+            previousPos.set(currentPos);
+            currentPos.set(rayStart).mulAdd(rayDir, d);
+
+            int bx = (int) Math.floor(currentPos.x);
+            int by = (int) Math.floor(currentPos.y);
+            int bz = (int) Math.floor(currentPos.z);
+
+            int blockType = voxelWorld.getWorld().getBlock(bx, by, bz);
+            if (blockType > 0 && blockType != BlockConstants.MAT_WATER) {
+                hasTargetBlock = true;
+                targetBlock.set(bx, by, bz);
+                placeTargetBlock.set((int) Math.floor(previousPos.x), (int) Math.floor(previousPos.y), (int) Math.floor(previousPos.z));
+                break;
+            }
+        }
+    }
+
+    private void handleBlockBreaking() {
+        if (blockActionTimer >= 0.2f) {
+            int bx = (int) targetBlock.x;
+            int by = (int) targetBlock.y;
+            int bz = (int) targetBlock.z;
+
+            if (by > 0) {
+                voxelWorld.setBlock(bx, by, bz, BlockConstants.MAT_AIR);
+                ServerConnection.getInstance().getClient().sendTCP(new message.BlockChangeMessage(bx, by, bz, BlockConstants.MAT_AIR));
+                blockActionTimer = 0f;
+            }
+        }
+    }
+
+    private void handleBlockPlacement() {
+        int bx = (int) placeTargetBlock.x;
+        int by = (int) placeTargetBlock.y;
+        int bz = (int) placeTargetBlock.z;
+
+        if (voxelWorld.getWorld().getBlock(bx, by, bz) == BlockConstants.MAT_AIR || voxelWorld.getWorld().getBlock(bx, by, bz) == BlockConstants.MAT_WATER) {
+            // Check intersection with player
+            float px = physicsState.getX();
+            float py = physicsState.getY();
+            float pz = physicsState.getZ();
+
+                boolean intersectsX = (bx < px + 0.3f) && (bx + 1 > px - 0.3f);
+                boolean intersectsY = (by < py + 1.8f) && (by + 1 > py - 0.1f);
+                boolean intersectsZ = (bz < pz + 0.3f) && (bz + 1 > pz - 0.3f);
+
+            if (!(intersectsX && intersectsY && intersectsZ)) {
+                int selectedType = buildableBlocks[selectedBlockIndex];
+                voxelWorld.setBlock(bx, by, bz, selectedType);
+                ServerConnection.getInstance().getClient().sendTCP(new message.BlockChangeMessage(bx, by, bz, selectedType));
+                blockActionTimer = 0f;
+            }
+        }
+    }
+
+
     private void updatePhysics(float delta) {
+        float fixedDelta = Math.min(delta, 0.1f);
+
         // Position and velocity are kept in physicsState directly
         physicsState.setX(camera.position.x);
         physicsState.setY(camera.position.y - EYE_HEIGHT);
@@ -223,7 +374,7 @@ public class VoxelScreen extends ScreenAdapter {
         inputState.setYaw(yaw);
         inputState.setPitch(pitch);
 
-        VoxelPhysics.update(physicsState, inputState, delta, voxelWorld.getTime(), voxelWorld.getWorld());
+        VoxelPhysics.update(physicsState, inputState, fixedDelta, voxelWorld.getTime(), voxelWorld.getWorld());
 
         float resY = physicsState.getY();
 
@@ -403,6 +554,7 @@ public class VoxelScreen extends ScreenAdapter {
         hud.dispose();
         pauseOverlay.dispose();
         modelBatch.dispose();
+        shapeRenderer.dispose();
         if (playerModel != null) playerModel.dispose();
     }
 

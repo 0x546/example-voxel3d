@@ -16,6 +16,9 @@ import static constant.Colors.PLAYER;
 import static constant.Colors.STONE;
 import static constant.Colors.WATER;
 import static constant.Colors.WOOD;
+import static constant.Colors.SAND;
+import static constant.Colors.BRICK;
+import static constant.Colors.GLASS;
 import static constant.Constants.WATER_LEVEL;
 import static constant.Constants.WATER_WAVE_AMPLITUDE;
 import static constant.Constants.WATER_WAVE_SPEED;
@@ -68,6 +71,22 @@ public class ProceduralVoxelWorld implements Disposable {
         rebuildMesh(chunk.getChunkX(), chunk.getChunkZ() + 1);
     }
 
+    public void setBlock(int x, int y, int z, int blockType) {
+        world.setBlock(x, y, z, blockType);
+
+        int chunkX = (int) Math.floor((float) x / Chunk.SIZE_X);
+        int chunkZ = (int) Math.floor((float) z / Chunk.SIZE_Z);
+        rebuildMesh(chunkX, chunkZ);
+
+        // Rebuild neighbors if modified on boundary
+        int localX = x - (chunkX * Chunk.SIZE_X);
+        int localZ = z - (chunkZ * Chunk.SIZE_Z);
+        if (localX == 0) rebuildMesh(chunkX - 1, chunkZ);
+        if (localX == Chunk.SIZE_X - 1) rebuildMesh(chunkX + 1, chunkZ);
+        if (localZ == 0) rebuildMesh(chunkX, chunkZ - 1);
+        if (localZ == Chunk.SIZE_Z - 1) rebuildMesh(chunkX, chunkZ + 1);
+    }
+
     private void rebuildMesh(int cx, int cz) {
         Chunk chunk = world.getChunk(cx, cz);
         if (chunk == null) return;
@@ -78,8 +97,9 @@ public class ProceduralVoxelWorld implements Disposable {
         String key = cx + "," + cz;
         if (chunkMeshes.containsKey(key)) {
             VoxelMeshBuilder.MeshPair old = chunkMeshes.get(key);
-            old.opaqueMesh().dispose();
-            old.waterMesh().dispose();
+            if (old.opaqueMesh() != null) old.opaqueMesh().dispose();
+            if (old.waterMesh() != null) old.waterMesh().dispose();
+            if (old.transparentMesh() != null) old.transparentMesh().dispose();
         }
         chunkMeshes.put(key, mp);
     }
@@ -95,6 +115,7 @@ public class ProceduralVoxelWorld implements Disposable {
         Gdx.gl.glCullFace(GL20.GL_BACK);
 
         renderOpaquePass(camera, underwater);
+        renderTransparentPass();
         renderWaterPass(camera, underwater);
     }
 
@@ -117,11 +138,31 @@ public class ProceduralVoxelWorld implements Disposable {
         shader.setUniformf("u_mat_leaves", LEAVES.r(), LEAVES.g(), LEAVES.b());
         shader.setUniformf("u_mat_water", WATER.r(), WATER.g(), WATER.b());
         shader.setUniformf("u_mat_player", PLAYER.r(), PLAYER.g(), PLAYER.b());
+        shader.setUniformf("u_mat_sand", SAND.r(), SAND.g(), SAND.b());
+        shader.setUniformf("u_mat_brick", BRICK.r(), BRICK.g(), BRICK.b());
+        shader.setUniformf("u_mat_glass", GLASS.r(), GLASS.g(), GLASS.b());
 
         for (VoxelMeshBuilder.MeshPair meshPair : chunkMeshes.values()) {
             if (meshPair.opaqueMesh() != null && meshPair.opaqueMesh().getNumVertices() > 0)
                 meshPair.opaqueMesh().render(shader, GL20.GL_TRIANGLES);
         }
+    }
+
+    private void renderTransparentPass() {
+        if (chunkMeshes.isEmpty()) return;
+
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+
+        // Keep shader bound (same as opaque) but with blending
+        shader.bind();
+
+        for (VoxelMeshBuilder.MeshPair meshPair : chunkMeshes.values()) {
+            if (meshPair.transparentMesh() != null && meshPair.transparentMesh().getNumVertices() > 0)
+                meshPair.transparentMesh().render(shader, GL20.GL_TRIANGLES);
+        }
+
+        Gdx.gl.glDisable(GL20.GL_BLEND);
     }
 
     private void renderWaterPass(Camera camera, boolean underwater) {
@@ -165,6 +206,7 @@ public class ProceduralVoxelWorld implements Disposable {
         for (VoxelMeshBuilder.MeshPair meshPair : chunkMeshes.values()) {
             if (meshPair.opaqueMesh() != null) meshPair.opaqueMesh().dispose();
             if (meshPair.waterMesh() != null) meshPair.waterMesh().dispose();
+            if (meshPair.transparentMesh() != null) meshPair.transparentMesh().dispose();
         }
         if (shader != null) shader.dispose();
         if (waterShader != null) waterShader.dispose();

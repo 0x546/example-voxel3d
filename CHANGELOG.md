@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.2.0] - Creative Mode & New Procedural Blocks (2026-04-19)
+
+### Features
+- **Creative Mode Block Interaction:** Implemented 3D raycasting for block placement (right-click) and removal (left-click). Includes a highlighted bounding box wireframe around the selected block.
+- **Interactive Action Bar:** Added a scrollable 2D HUD at the bottom of the screen (`VoxelHud`) to cycle through available building materials.
+- **New Procedural Blocks:** Added Sand, Brick, and Glass. 
+- **World Persistence & Dynamic Title Menu:** Server instances stay alive when empty instead of terminating instantly. `TitleScreen` now actively polls the server with `ServerStatusRequestMessage` to reveal context-sensitive buttons (Continue, New Game, Reset World) and a live player counter.
+- **Transparent Rendering Pass:** Expanded `VoxelMeshBuilder` with a third discrete rendering pass specifically for transparent blocks (Glass) preventing internal geometry culling and fixing depth buffer blending against water and solids.
+
+### Technical & System Improvements
+- **Continuous Block Placement:** Added a `blockActionTimer` enabling continuous smooth block placement/breaking while holding the mouse button.
+- **Player Placement Safety:** Added spatial intersection checks against the player bounding box to prevent trapping the player inside newly constructed blocks.
+- **Indestructible Bedrock:** Added a bedrock limit protecting the world floor (`Y=0`) from being broken.
+
+### Fixes
+- **Procedural Shader Details & Alignment:** Improved value noise shading for Dirt, Grass, and Stone, and fixed the block UV projection math locking side faces to prevent Brick and Wood textures from stretching or misaligning horizontally.
+- **UV Edge Artifacts:** Resolved Z-fighting and edge flickering on brick/wood by implementing `safeUV` rounding offsets inside the fragment shader. 
+- **Client Prediction Rubber-Banding:** Fixed continuous one-block wide teleports caused by local chunks generating. Enforced a rigid `Math.min(delta, 0.1f)` maximum time-step in `VoxelScreen` ensuring the client doesn't over-predict movements past the server during frame drops.
+
 ## [1.1.0] - Multiplayer Chunk Streaming & Creative Flight (2026-04-19)
 
 ### Features

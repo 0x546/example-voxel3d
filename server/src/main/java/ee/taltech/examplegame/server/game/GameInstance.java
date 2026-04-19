@@ -79,6 +79,17 @@ public class GameInstance extends Thread {
         connection.sendTCP(new ChunkDataMessage(chunk));
     }
 
+    public synchronized void handleBlockChange(Connection connection, int x, int y, int z, int blockType) {
+        world.setBlock(x, y, z, blockType);
+
+        message.BlockChangeMessage msg = new message.BlockChangeMessage(x, y, z, blockType);
+        connections.forEach(conn -> {
+            if (conn != connection) {
+                conn.sendTCP(msg);
+            }
+        });
+    }
+
     /**
      * Check if the game has the required number of players to start.
      */
@@ -166,12 +177,8 @@ public class GameInstance extends Thread {
                 disposeGame();
                 isGameRunning = false;
             }
-            // If no players are connected, stop the game loop
-            if (connections.isEmpty()) {
-                Log.info("No players connected, stopping game loop.");
-                disposeGame();
-                isGameRunning = false;
-            }
+            // If no players are connected, do not stop game loop so world persists
+            // Just idle
 
             try {
                 // We don't want to update the game state every millisecond, that would be

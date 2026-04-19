@@ -67,6 +67,9 @@ public final class Shaders {
         uniform vec3 u_mat_wood;
         uniform vec3 u_mat_leaves;
         uniform vec3 u_mat_water;
+        uniform vec3 u_mat_sand;
+        uniform vec3 u_mat_brick;
+        uniform vec3 u_mat_glass;
 
         // --- NOISE FUNCTIONS ---
 
@@ -92,24 +95,60 @@ public final class Shaders {
 
         // --- COLOR LOGIC ---
 
-        vec3 proceduralColor(int id, vec3 pos) {
-            // Apply slight noise to coordinate to break tiling
-            float small = noiseSmall(pos.xz * 0.6) * 0.08;
+        vec3 proceduralColor(int id, vec3 pos, vec3 normal) {
+            vec2 uv;
+            if (abs(normal.y) > 0.5) uv = pos.xz;
+            else if (abs(normal.x) > 0.5) uv = vec2(pos.z, pos.y);
+            else uv = pos.xy;
+
+            // Pixelated blocky noise for defined texture look
+            vec2 pixelUv = floor(uv * 16.0);
+            float bn = hashf(pixelUv);
 
             if (id == 1) { // GRASS
-                // Mix slightly different greens
-                return clamp(u_mat_grass + vec3(small * 0.8, small, small * 0.6), 0.0, 1.0);
+                float grit = (bn - 0.5) * 0.15;
+                vec3 col = u_mat_grass;
+
+                if (abs(normal.y) < 0.5) { // side faces
+                    float localY = fract(pos.y);
+                    float hCoord = (abs(normal.x) > 0.5) ? pos.z : pos.x;
+                    float hPixel = floor(hCoord * 16.0);
+                    float edgeNoise = hashf(vec2(hPixel, 0.0));
+                    float marginEnd = 0.5 + edgeNoise * 0.3;
+                    if (localY < marginEnd) {
+                        col = u_mat_dirt;
+                    } else if (localY < marginEnd + 0.0625) {
+                        col *= 0.8; // subtle drop shadow
+                    }
+                } else if (normal.y < -0.5) {
+                    col = u_mat_dirt; // bottom face
+                }
+                return clamp(col + vec3(grit), 0.0, 1.0);
             }
             else if (id == 2) { // DIRT
-                return clamp(u_mat_dirt + vec3(small * 0.6), 0.0, 1.0);
+                float grit = (bn - 0.5) * 0.2;
+                return clamp(u_mat_dirt + vec3(grit), 0.0, 1.0);
             }
             else if (id == 3) { // STONE
-                return clamp(u_mat_stone + vec3(small - 0.04), 0.0, 1.0);
+                float grit = (bn - 0.5) * 0.25;
+                // Add a few subtle larger patterns
+                float vein = hashf(floor(uv * 4.0));
+                grit += (vein - 0.5) * 0.15;
+                return clamp(u_mat_stone + vec3(grit), 0.0, 1.0);
             }
             else if (id == 4) { // WOOD
-                // Create ring-like pattern for wood
-                float ring = fract(sin(dot(pos.xy, vec2(12.9898, 78.233))) * 43758.5453);
-                return clamp(u_mat_wood + vec3(ring * 0.06), 0.0, 1.0);
+                if (abs(normal.y) > 0.5) {
+                    vec2 uv = pos.xz;
+
+                    vec2 localUV = fract(uv);
+                    float dist = length(localUV - vec2(0.5));
+                    float ring = fract(dist * 8.0 + noiseSmall(pos.xz * 4.0) * 0.3);
+                    return clamp(u_mat_wood + vec3(ring * 0.08), 0.0, 1.0);
+                } else {
+                    float bark = noiseSmall(vec2(uv.x * 12.0, uv.y * 1.5));
+                    float dark = noiseSmall(vec2(uv.x * 5.0, uv.y * 0.5));
+                    return clamp(u_mat_wood * (0.7 + dark * 0.3) + vec3(bark * 0.15), 0.0, 1.0);
+                }
             }
             else if (id == 5) { // LEAVES
                 float n = noiseSmall(pos.xz * 1.2);
@@ -117,6 +156,44 @@ public final class Shaders {
             }
             else if (id == 6) { // WATER
                 return clamp(u_mat_water, 0.0, 1.0);
+            }
+            else if (id == 8) { // SAND
+                float s = noiseSmall(pos.xz * 3.1) * 0.05;
+                return clamp(u_mat_sand + vec3(s), 0.0, 1.0);
+            }
+            else if (id == 9) { // BRICK
+                vec2 uv;
+                if (abs(normal.y) > 0.5) uv = pos.xz;
+                else if (abs(normal.x) > 0.5) uv = vec2(pos.z, pos.y);
+                else uv = pos.xy;
+
+                // Slightly offset position to prevent z-fighting at exact block boundaries
+                vec2 safeUV = uv + 0.001;
+
+                vec2 brickUv = safeUV * vec2(2.0, 4.0);
+                // Offset alternative rows
+                float rowOffset = step(0.5, fract(brickUv.y * 0.5)) * 0.5;
+                brickUv.x += rowOffset;
+
+                vec2 bUV = fract(brickUv);
+
+                float mortar = step(bUV.x, 0.05) + step(bUV.y, 0.1);
+                mortar = clamp(mortar, 0.0, 1.0);
+
+                float bNoise = noiseSmall(safeUV * 10.0) * 0.1;
+                vec3 brickColor = u_mat_brick + vec3(bNoise);
+                vec3 mortarColor = vec3(0.6, 0.6, 0.6) + vec3(bNoise);
+
+                return clamp(mix(brickColor, mortarColor, mortar), 0.0, 1.0);
+            }
+            else if (id == 10) { // GLASS
+                vec2 localUv = fract(uv);
+                // Framed border and diagonal shine
+                float frame = step(localUv.x, 0.0625) + step(1.0 - 0.0625, localUv.x) +
+                              step(localUv.y, 0.0625) + step(1.0 - 0.0625, localUv.y);
+                float highlight = step(localUv.x - localUv.y, -0.6) * step(localUv.x, 0.3);
+                vec3 col = u_mat_glass + vec3(clamp(frame + highlight, 0.0, 1.0) * 0.6);
+                return clamp(col, 0.0, 1.0);
             }
 
             // Fallback (Magenta for error)
@@ -128,7 +205,7 @@ public final class Shaders {
             int id = int(v_matId);
 
             // Get base color
-            vec3 col = proceduralColor(id, v_worldPos);
+            vec3 col = proceduralColor(id, v_worldPos, normalize(v_normal));
 
             // Simple diffuse lighting
             float diff = max(dot(normalize(v_normal), normalize(-u_lightDir)), 0.0);
@@ -141,6 +218,9 @@ public final class Shaders {
                 // Mix with a blueish tint and make it transparent
                 finalColor = mix(finalColor, vec3(0.1, 0.3, 0.5), 0.25);
                 gl_FragColor = vec4(finalColor, 0.6); // Alpha 0.6
+            } else if (id == 10) {
+                // Glass Special Rendering
+                gl_FragColor = vec4(finalColor, 0.4);
             } else {
                 // --- Underwater tinting for solid blocks ---
                 // Calculate wave height at this horizontal position

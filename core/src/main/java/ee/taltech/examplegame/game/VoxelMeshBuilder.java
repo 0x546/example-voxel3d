@@ -26,7 +26,7 @@ public class VoxelMeshBuilder {
     /**
      * Container for the resulting opaque and water meshes.
      */
-    public record MeshPair(Mesh opaqueMesh, Mesh waterMesh) {}
+    public record MeshPair(Mesh opaqueMesh, Mesh waterMesh, Mesh transparentMesh) {}
 
     /**
      * Context object passed during mesh building to avoid long parameter lists.
@@ -37,12 +37,14 @@ public class VoxelMeshBuilder {
         final World world;
         final MeshBuffer opaque;
         final MeshBuffer water;
+        final MeshBuffer transparent;
 
-        BuildContext(Chunk chunk, World world, MeshBuffer opaque, MeshBuffer water) {
+        BuildContext(Chunk chunk, World world, MeshBuffer opaque, MeshBuffer water, MeshBuffer transparent) {
             this.chunk = chunk;
             this.world = world;
             this.opaque = opaque;
             this.water = water;
+            this.transparent = transparent;
         }
     }
 
@@ -76,8 +78,9 @@ public class VoxelMeshBuilder {
     public MeshPair build(Chunk chunk, World world) {
         MeshBuffer opaqueBuffer = new MeshBuffer();
         MeshBuffer waterBuffer = new MeshBuffer();
+        MeshBuffer transparentBuffer = new MeshBuffer();
 
-        BuildContext ctx = new BuildContext(chunk, world, opaqueBuffer, waterBuffer);
+        BuildContext ctx = new BuildContext(chunk, world, opaqueBuffer, waterBuffer, transparentBuffer);
 
         for (int x = 0; x < Chunk.SIZE_X; x++) {
             for (int z = 0; z < Chunk.SIZE_Z; z++) {
@@ -87,7 +90,7 @@ public class VoxelMeshBuilder {
             }
         }
 
-        return new MeshPair(opaqueBuffer.createMesh(), waterBuffer.createMesh());
+        return new MeshPair(opaqueBuffer.createMesh(), waterBuffer.createMesh(), transparentBuffer.createMesh());
     }
 
     /**
@@ -99,13 +102,21 @@ public class VoxelMeshBuilder {
             return;
 
         boolean selfIsWater = (mat == BlockConstants.MAT_WATER);
-        MeshBuffer target = selfIsWater ? ctx.water : ctx.opaque;
+        boolean selfIsTransparent = (mat == BlockConstants.MAT_GLASS);
+
+        MeshBuffer target;
+        if (selfIsWater) {
+            target = ctx.water;
+        } else {
+            if (selfIsTransparent) target = ctx.transparent;
+            else target = ctx.opaque;
+        }
 
         int worldX = ctx.chunk.getChunkX() * Chunk.SIZE_X + localX;
         int worldZ = ctx.chunk.getChunkZ() * Chunk.SIZE_Z + localZ;
 
         for (Face face : Face.values()) {
-            if (shouldDrawFace(ctx.world, worldX, y, worldZ, face, selfIsWater)) {
+            if (shouldDrawFace(ctx.world, worldX, y, worldZ, face, mat)) {
                 target.addFace(worldX, y, worldZ, face, mat);
             }
         }
@@ -117,7 +128,7 @@ public class VoxelMeshBuilder {
      * 2. If neighbor is air => visible.
      * 3. If self is water and neighbor is not water => visible (and vice versa).
      */
-    private boolean shouldDrawFace(World world, int x, int y, int z, Face face, boolean selfIsWater) {
+    private boolean shouldDrawFace(World world, int x, int y, int z, Face face, int selfMat) {
         int nx = x + face.offset[0];
         int ny = y + face.offset[1];
         int nz = z + face.offset[2];
@@ -135,10 +146,16 @@ public class VoxelMeshBuilder {
         if (nMat == BlockConstants.MAT_AIR)
             return true;
 
-        boolean neighborIsWater = (nMat == BlockConstants.MAT_WATER);
+        // Glass against Glass => hidden
+        if (selfMat == BlockConstants.MAT_GLASS && nMat == BlockConstants.MAT_GLASS)
+            return false;
 
-        // Visible if different fluid/solid state (water vs non-water).
-        return selfIsWater != neighborIsWater;
+        // Water against Water => hidden
+        if (selfMat == BlockConstants.MAT_WATER && nMat == BlockConstants.MAT_WATER)
+            return false;
+
+        // Transparent vs opaque => visible
+        return nMat == BlockConstants.MAT_WATER || nMat == BlockConstants.MAT_GLASS;
     }
 
     // ==================================================================================
