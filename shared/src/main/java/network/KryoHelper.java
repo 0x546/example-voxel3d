@@ -19,5 +19,13 @@ public class KryoHelper {
         kryo.register(message.PlayerMovementMessage.class);
         kryo.register(message.GameLeaveMessage.class);
         kryo.register(message.PlayerRespawnMessage.class);
+
+        kryo.register(ee.taltech.examplegame.shared.world.Chunk.class);
+        kryo.register(int[][][].class);
+        kryo.register(int[][].class);
+        kryo.register(int[].class);
+        kryo.register(message.ChunkDataMessage.class);
+        kryo.register(message.ChunkRequestMessage.class);
+        kryo.register(message.GenerateWorldMessage.class);
     }
 }

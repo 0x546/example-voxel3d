@@ -9,8 +9,6 @@ import message.dto.PlayerState;
 import java.util.ArrayList;
 import java.util.List;
 
-import static constant.Constants.GAME_TICK_RATE;
-
 @Getter
 @Setter
 public class GameStateHandler {
@@ -18,9 +16,9 @@ public class GameStateHandler {
     private boolean allPlayersHaveJoined = false;
     private float gameTime = 0;
 
-    public void incrementGameTimeIfPlayersPresent() {
+    public void incrementGameTimeIfPlayersPresent(float delta) {
         if (allPlayersHaveJoined) {
-            gameTime += 1f / GAME_TICK_RATE;
+            gameTime += delta;
         }
     }
 

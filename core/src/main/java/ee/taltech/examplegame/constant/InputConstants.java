@@ -13,6 +13,7 @@ public class InputConstants {
     public static final int KEY_RIGHT = Input.Keys.D;
     public static final int KEY_JUMP = Input.Keys.SPACE;
     public static final int KEY_SNEAK = Input.Keys.SHIFT_LEFT;
+    public static final int KEY_FLY = Input.Keys.F;
     public static final int KEY_PAUSE = Input.Keys.ESCAPE;
     public static final int MOUSE_ACTION = Input.Buttons.LEFT;
 }

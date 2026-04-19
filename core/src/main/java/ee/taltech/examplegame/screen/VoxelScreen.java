@@ -23,6 +23,9 @@ import static constant.Constants.EYE_HEIGHT;
 import static constant.Constants.MOUSE_SENSITIVITY;
 import static constant.Constants.PLAYER_INTERPOLATION_SPEED;
 import static constant.Constants.PLAYER_SNAP_DISTANCE;
+
+import com.esotericsoftware.kryonet.Connection;
+import com.esotericsoftware.kryonet.Listener;
 import ee.taltech.examplegame.game.GameStateManager;
 import ee.taltech.examplegame.game.PlayerInputManager;
 import ee.taltech.examplegame.game.ProceduralVoxelWorld;
@@ -32,6 +35,9 @@ import ee.taltech.examplegame.screen.overlay.PauseOverlay;
 import ee.taltech.examplegame.screen.overlay.VoxelHud;
 import ee.taltech.examplegame.util.PlayerModelGenerator;
 import message.dto.PlayerState;
+import message.ChunkRequestMessage;
+import message.ChunkDataMessage;
+import ee.taltech.examplegame.shared.world.Chunk;
 
 public class VoxelScreen extends ScreenAdapter {
 
@@ -57,6 +63,10 @@ public class VoxelScreen extends ScreenAdapter {
     private final VoxelPhysics.InputState inputState = new VoxelPhysics.InputState();
 
     private float animationTimer = 0;
+
+    private float chunkRequestTimer = 0;
+
+    private final Listener networkListener;
 
     public VoxelScreen(Game game) {
 
@@ -84,6 +94,16 @@ public class VoxelScreen extends ScreenAdapter {
         modelBatch = new ModelBatch();
 
         playerModel = PlayerModelGenerator.createPlayerModel();
+
+        networkListener = new Listener() {
+            @Override
+            public void received(Connection connection, Object object) {
+                if (object instanceof ChunkDataMessage cDM) {
+                    Gdx.app.postRunnable(() -> voxelWorld.addChunk(cDM.getChunk()));
+                }
+            }
+        };
+        ServerConnection.getInstance().getClient().addListener(networkListener);
 
         pauseOverlay = new PauseOverlay(() -> {
             paused = false;
@@ -117,7 +137,7 @@ public class VoxelScreen extends ScreenAdapter {
         }
 
         // Keep local player in sync with server authority
-        synchronizeLocalPlayerWithServer(delta);
+        synchronizeLocalPlayerWithServer();
 
         // Detect underwater state
         underwater = isUnderwater();
@@ -133,6 +153,15 @@ public class VoxelScreen extends ScreenAdapter {
 
         if (paused) {
             pauseOverlay.render(delta);
+        }
+
+        handleReceivedMessages();
+
+        // request chunks
+        chunkRequestTimer += delta;
+        if (chunkRequestTimer >= 0.5f) {
+            chunkRequestTimer = 0;
+            requestNeededChunks();
         }
     }
 
@@ -189,10 +218,12 @@ public class VoxelScreen extends ScreenAdapter {
         inputState.setMoveForward(inputManager.getMoveForward());
         inputState.setMoveSideways(inputManager.getMoveSideways());
         inputState.setJump(inputManager.isJump());
+        inputState.setSneak(inputManager.isSneak());
+        inputState.setFly(inputManager.isFly());
         inputState.setYaw(yaw);
         inputState.setPitch(pitch);
 
-        VoxelPhysics.update(physicsState, inputState, delta, voxelWorld.getTime(), voxelWorld.getBlocks());
+        VoxelPhysics.update(physicsState, inputState, delta, voxelWorld.getTime(), voxelWorld.getWorld());
 
         float resY = physicsState.getY();
 
@@ -210,7 +241,7 @@ public class VoxelScreen extends ScreenAdapter {
     // -------------------------
     // Helper: server synchronization for local player
     // -------------------------
-    private void synchronizeLocalPlayerWithServer(float delta) {
+    private void synchronizeLocalPlayerWithServer() {
         var latestMsg = gameStateManager.getLatestGameStateMessage();
         if (latestMsg == null) return;
 
@@ -234,10 +265,6 @@ public class VoxelScreen extends ScreenAdapter {
                 physicsState.setVy(state.getVy());
                 physicsState.setVz(state.getVz());
                 camera.update();
-            } else if (distSq > 0.01f) {
-                // Soft correction
-                camera.position.lerp(new Vector3(state.getX(), state.getY() + EYE_HEIGHT, state.getZ()), 5f * delta);
-                camera.update();
             }
         }
     }
@@ -250,7 +277,7 @@ public class VoxelScreen extends ScreenAdapter {
         float cy = camera.position.y;
         float cz = camera.position.z;
 
-        return VoxelPhysics.isUnderwater(cx, cy, cz, voxelWorld.getTime(), voxelWorld.getBlocks());
+        return VoxelPhysics.isUnderwater(cx, cy, cz, voxelWorld.getTime(), voxelWorld.getWorld());
     }
 
     // -------------------------
@@ -308,7 +335,7 @@ public class VoxelScreen extends ScreenAdapter {
             currentPos.y + EYE_HEIGHT,
             currentPos.z,
             voxelWorld.getTime(),
-            voxelWorld.getBlocks()
+            voxelWorld.getWorld()
         );
 
         // 2. Compute local animations
@@ -371,10 +398,30 @@ public class VoxelScreen extends ScreenAdapter {
 
     @Override
     public void dispose() {
+        ServerConnection.getInstance().getClient().removeListener(networkListener);
         voxelWorld.dispose();
         hud.dispose();
         pauseOverlay.dispose();
         modelBatch.dispose();
         if (playerModel != null) playerModel.dispose();
+    }
+
+    private void handleReceivedMessages() {
+        // Nothing here anymore, chunks are fetched via listener
+    }
+
+    private void requestNeededChunks() {
+        int playerChunkX = (int) Math.floor(physicsState.getX() / Chunk.SIZE_X);
+        int playerChunkZ = (int) Math.floor(physicsState.getZ() / Chunk.SIZE_Z);
+
+        int currentChunkDistance = PauseOverlay.getChunkLoadDistance();
+
+        for (int cx = playerChunkX - currentChunkDistance; cx <= playerChunkX + currentChunkDistance; cx++) {
+            for (int cz = playerChunkZ - currentChunkDistance; cz <= playerChunkZ + currentChunkDistance; cz++) {
+                if (!voxelWorld.getWorld().hasChunk(cx, cz)) {
+                    ServerConnection.getInstance().getClient().sendUDP(new ChunkRequestMessage(cx, cz));
+                }
+            }
+        }
     }
 }

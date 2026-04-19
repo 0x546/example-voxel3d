@@ -12,14 +12,14 @@ import com.esotericsoftware.minlog.Log;
 import static constant.Constants.GAME_TICK_RATE;
 import static constant.Constants.PLAYER_COUNT_IN_GAME;
 import static constant.Constants.WATER_LEVEL;
-import static constant.Constants.WORLD_DEPTH;
-import static constant.Constants.WORLD_HEIGHT;
-import static constant.Constants.WORLD_WIDTH;
 import ee.taltech.examplegame.server.game.object.Player;
 import ee.taltech.examplegame.server.listener.ServerListener;
 import ee.taltech.examplegame.shared.game.TerrainGenerator;
 import ee.taltech.examplegame.shared.game.TreeGenerator;
+import ee.taltech.examplegame.shared.world.Chunk;
+import ee.taltech.examplegame.shared.world.World;
 import lombok.Getter;
+import message.ChunkDataMessage;
 
 /**
  * Represents the game logic and server-side management of the game instance.
@@ -44,7 +44,10 @@ public class GameInstance extends Thread {
 
     // Server-side world for physics
     @Getter
-    private final int[][][] blocks;
+    private final World world;
+
+    private final TerrainGenerator terrainGenerator;
+    private final TreeGenerator treeGenerator;
 
     /**
      * Initializes the game instance.
@@ -56,16 +59,25 @@ public class GameInstance extends Thread {
     public GameInstance(ServerListener server, Connection firstConnection) {
         this.server = server;
 
-        // Generate world
-        this.blocks = new int[WORLD_WIDTH][WORLD_HEIGHT][WORLD_DEPTH];
-        new TerrainGenerator(WORLD_WIDTH, WORLD_HEIGHT, WORLD_DEPTH, WATER_LEVEL).generate(blocks);
-        new TreeGenerator(WORLD_WIDTH, WORLD_HEIGHT, WORLD_DEPTH).growTrees(blocks);
+        this.world = new World();
+        this.terrainGenerator = new TerrainGenerator(WATER_LEVEL);
+        this.treeGenerator = new TreeGenerator();
 
         Player newPlayer = new Player(firstConnection, this);
         players.add(newPlayer);
         connections.add(firstConnection);
     }
 
+    public synchronized void handleChunkRequest(Connection connection, int chunkX, int chunkZ) {
+        if (!world.hasChunk(chunkX, chunkZ)) {
+            Chunk chunk = new Chunk(chunkX, chunkZ);
+            world.addChunk(chunk);
+            terrainGenerator.generate(chunk);
+            treeGenerator.growTrees(terrainGenerator, chunk);
+        }
+        Chunk chunk = world.getChunk(chunkX, chunkZ);
+        connection.sendTCP(new ChunkDataMessage(chunk));
+    }
 
     /**
      * Check if the game has the required number of players to start.
@@ -112,7 +124,7 @@ public class GameInstance extends Thread {
      * Stops and disposes the current game instance, so a new one can be created
      * with the same or new players.
      */
-    private void disposeGame() {
+    public void disposeGame() {
         players.forEach(Player::dispose); // remove movement and shooting listeners
         connections.clear();
         server.disposeGame(); // Sets the active game instance in main server to null
@@ -126,14 +138,21 @@ public class GameInstance extends Thread {
     @Override
     public void run() {
         boolean isGameRunning = true;
+        long lastTime = System.nanoTime();
 
         while (isGameRunning) {
-            gameStateHandler.incrementGameTimeIfPlayersPresent();
+            long currentTime = System.nanoTime();
+            float delta = (currentTime - lastTime) / 1_000_000_000.0f;
+            lastTime = currentTime;
+
+            if (delta > 0.1f) delta = 0.1f;
+            final float finalDelta = delta;
+
+            gameStateHandler.incrementGameTimeIfPlayersPresent(finalDelta);
 
             // update players (physics, movement)
-            float delta = 1.0f / GAME_TICK_RATE;
             float time = gameStateHandler.getGameTime();
-            players.forEach(p -> p.update(delta, blocks, time));
+            players.forEach(p -> p.update(finalDelta, world, time));
 
             // construct gameStateMessage
             var gameStateMessage = gameStateHandler.getGameStateMessage(players);

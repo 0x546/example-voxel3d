@@ -10,6 +10,7 @@ import static constant.Constants.VOID_LEVEL;
 import ee.taltech.examplegame.physics.VoxelPhysics;
 import ee.taltech.examplegame.server.game.GameInstance;
 import ee.taltech.examplegame.server.listener.PlayerMovementListener;
+import ee.taltech.examplegame.shared.world.World;
 import lombok.Getter;
 import lombok.Setter;
 import message.PlayerMovementMessage;
@@ -51,12 +52,13 @@ public class Player {
         inputState.setMoveSideways(message.getMoveSideways());
         inputState.setJump(message.isJump());
         inputState.setSneak(message.isSneak());
+        inputState.setFly(message.isFly());
         inputState.setYaw(message.getYaw());
         inputState.setPitch(message.getPitch());
     }
 
-    public void update(float delta, int[][][] blocks, float time) {
-        VoxelPhysics.update(physicsState, inputState, delta, time, blocks);
+    public void update(float delta, World world, float time) {
+        VoxelPhysics.update(physicsState, inputState, delta, time, world);
 
         // Bounds check (keep in world)
         if (physicsState.getY() < VOID_LEVEL) { // Void kill
@@ -80,12 +82,6 @@ public class Player {
         playerState.setPitch(inputState.getPitch());
         playerState.setLives(lives);
         return playerState;
-    }
-
-    public void decreaseLives() {
-        if (lives > 0) {
-            setLives(getLives() - 1);
-        }
     }
 
     /**

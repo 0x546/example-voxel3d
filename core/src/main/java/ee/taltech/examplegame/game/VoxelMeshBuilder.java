@@ -10,22 +10,17 @@ import constant.BlockConstants;
 
 import static constant.Constants.*;
 
+import ee.taltech.examplegame.shared.world.Chunk;
+import ee.taltech.examplegame.shared.world.World;
+
 /**
  * Builds LibGDX Meshes from a 3D voxel array.
  * Separates opaque geometry from transparent geometry.
  */
 public class VoxelMeshBuilder {
 
-    // --- Configuration ---
-
-    private final int width;
-    private final int height;
-    private final int depth;
-
-    public VoxelMeshBuilder(int width, int height, int depth) {
-        this.width = width;
-        this.height = height;
-        this.depth = depth;
+    public VoxelMeshBuilder() {
+        // Utility class constructor is explicitly empty. Build state is instantiated per #buildMesh call.
     }
 
     /**
@@ -38,12 +33,14 @@ public class VoxelMeshBuilder {
      * Contains block data and target buffers.
      */
     private static class BuildContext {
-        final int[][][] blocks;
+        final Chunk chunk;
+        final World world;
         final MeshBuffer opaque;
         final MeshBuffer water;
 
-        BuildContext(int[][][] blocks, MeshBuffer opaque, MeshBuffer water) {
-            this.blocks = blocks;
+        BuildContext(Chunk chunk, World world, MeshBuffer opaque, MeshBuffer water) {
+            this.chunk = chunk;
+            this.world = world;
             this.opaque = opaque;
             this.water = water;
         }
@@ -76,15 +73,15 @@ public class VoxelMeshBuilder {
      * Constructs meshes for opaque and water blocks. Iterates over all voxels and
      * processes visible faces.
      */
-    public MeshPair build(int[][][] blocks) {
+    public MeshPair build(Chunk chunk, World world) {
         MeshBuffer opaqueBuffer = new MeshBuffer();
         MeshBuffer waterBuffer = new MeshBuffer();
 
-        BuildContext ctx = new BuildContext(blocks, opaqueBuffer, waterBuffer);
+        BuildContext ctx = new BuildContext(chunk, world, opaqueBuffer, waterBuffer);
 
-        for (int x = 0; x < width; x++) {
-            for (int z = 0; z < depth; z++) {
-                for (int y = 0; y < height; y++) {
+        for (int x = 0; x < Chunk.SIZE_X; x++) {
+            for (int z = 0; z < Chunk.SIZE_Z; z++) {
+                for (int y = 0; y < Chunk.SIZE_Y; y++) {
                     processVoxel(ctx, x, y, z);
                 }
             }
@@ -96,17 +93,20 @@ public class VoxelMeshBuilder {
     /**
      * Process voxel at (x,y,z): determine material and add visible faces.
      */
-    private void processVoxel(BuildContext ctx, int x, int y, int z) {
-        int mat = ctx.blocks[x][y][z];
+    private void processVoxel(BuildContext ctx, int localX, int y, int localZ) {
+        int mat = ctx.chunk.getBlocks()[localX][y][localZ];
         if (mat == BlockConstants.MAT_AIR)
             return;
 
         boolean selfIsWater = (mat == BlockConstants.MAT_WATER);
         MeshBuffer target = selfIsWater ? ctx.water : ctx.opaque;
 
+        int worldX = ctx.chunk.getChunkX() * Chunk.SIZE_X + localX;
+        int worldZ = ctx.chunk.getChunkZ() * Chunk.SIZE_Z + localZ;
+
         for (Face face : Face.values()) {
-            if (shouldDrawFace(ctx.blocks, x, y, z, face, selfIsWater)) {
-                target.addFace(x, y, z, face, mat);
+            if (shouldDrawFace(ctx.world, worldX, y, worldZ, face, selfIsWater)) {
+                target.addFace(worldX, y, worldZ, face, mat);
             }
         }
     }
@@ -117,16 +117,19 @@ public class VoxelMeshBuilder {
      * 2. If neighbor is air => visible.
      * 3. If self is water and neighbor is not water => visible (and vice versa).
      */
-    private boolean shouldDrawFace(int[][][] blocks, int x, int y, int z, Face face, boolean selfIsWater) {
+    private boolean shouldDrawFace(World world, int x, int y, int z, Face face, boolean selfIsWater) {
         int nx = x + face.offset[0];
         int ny = y + face.offset[1];
         int nz = z + face.offset[2];
 
-        // World boundary => visible
-        if (nx < 0 || nx >= width || ny < 0 || ny >= height || nz < 0 || nz >= depth)
+        // World boundary (Y only)
+        if (ny < 0 || ny >= Chunk.SIZE_Y)
             return true;
 
-        int nMat = blocks[nx][ny][nz];
+        int nMat = world.getBlock(nx, ny, nz);
+
+        // Not generated yet => assume visible for now, or don't draw. Usually safer to draw boundary.
+        if (nMat == -1) return true;
 
         // Neighbor is air => visible
         if (nMat == BlockConstants.MAT_AIR)

@@ -22,6 +22,7 @@ public class PlayerInputManager {
     private float lastSideways = 0;
     private boolean lastJump = false;
     private boolean lastSneak = false;
+    private boolean lastFly = false;
 
     // Exposed current state
     @Getter
@@ -33,6 +34,8 @@ public class PlayerInputManager {
     @Getter
     private boolean sneak = false;
     @Getter
+    private boolean fly = false;
+    @Getter
     private boolean pausePressed = false;
     @Getter
     private boolean actionPressed = false;
@@ -41,22 +44,21 @@ public class PlayerInputManager {
     private static final float ROTATION_THRESHOLD = 0.01f;
 
     public void update(float yaw, float pitch) {
-        gatherInput(false);
-
         // Check if anything changed
         boolean rotationChanged = Math.abs(yaw - lastYaw) > ROTATION_THRESHOLD ||
                                  Math.abs(pitch - lastPitch) > ROTATION_THRESHOLD;
         boolean movementChanged = moveForward != lastForward ||
                                  moveSideways != lastSideways ||
                                  jump != lastJump ||
-                                 sneak != lastSneak;
+                                 sneak != lastSneak ||
+                                 fly != lastFly;
 
         long currentTime = System.currentTimeMillis();
         boolean intervalElapsed = currentTime - lastSendTime > SEND_INTERVAL_MS;
 
         if (rotationChanged || movementChanged || intervalElapsed) {
             PlayerMovementMessage message = new PlayerMovementMessage(
-                yaw, pitch, moveForward, moveSideways, jump, sneak
+                yaw, pitch, moveForward, moveSideways, jump, sneak, fly
             );
 
             ServerConnection.getInstance().getClient().sendUDP(message);
@@ -68,6 +70,7 @@ public class PlayerInputManager {
             lastSideways = moveSideways;
             lastJump = jump;
             lastSneak = sneak;
+            lastFly = fly;
             lastSendTime = currentTime;
         }
     }
@@ -91,7 +94,7 @@ public class PlayerInputManager {
         lastPitch = pitch;
 
         PlayerMovementMessage message = new PlayerMovementMessage(
-            yaw, pitch, 0, 0, false, false
+            yaw, pitch, 0, 0, false, false, fly
         );
         ServerConnection.getInstance().getClient().sendUDP(message);
     }
@@ -103,6 +106,10 @@ public class PlayerInputManager {
         sneak = false;
 
         if (!paused) {
+            if (Gdx.input.isKeyJustPressed(InputConstants.KEY_FLY)) {
+                fly = !fly;
+            }
+
             if (Gdx.input.isKeyPressed(InputConstants.KEY_FORWARD)) moveForward += 1;
             if (Gdx.input.isKeyPressed(InputConstants.KEY_BACKWARD)) moveForward -= 1;
             if (Gdx.input.isKeyPressed(InputConstants.KEY_LEFT)) moveSideways -= 1;

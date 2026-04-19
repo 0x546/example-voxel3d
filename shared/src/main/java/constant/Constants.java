@@ -14,11 +14,11 @@ public class Constants {
     // --- physical player constants ---
     public static final float GRAVITY = 25f;
     public static final float JUMP_VELOCITY = 10f;
-    public static final float MOVE_SPEED = 16f;
+    public static final float MOVE_SPEED = 24f;
     public static final float DAMPING = 0.9f;
     public static final float WATER_GRAVITY = 6f;        // much slower sinking
     public static final float SWIM_UP_SPEED = 3f;        // space bar ascent
-    public static final float WATER_MOVE_SPEED = 12f;     // slower horizontal movement
+    public static final float WATER_MOVE_SPEED = 16f;     // slower horizontal movement
     public static final float WATER_DAMPING = 0.85f;     // stronger drag in water
     public static final float PLAYER_WIDTH = 0.6f;
     public static final float PLAYER_HEIGHT = 1.8f;
@@ -57,6 +57,7 @@ public class Constants {
     public static final float CAMERA_NEAR = 0.1f;
     public static final float CAMERA_FAR = 300f;
     public static final float CAMERA_FOV = 90f;
+    public static final int CHUNK_LOAD_DISTANCE = 2;
 
     // --- water shader constants ---
     public static final float WATER_WAVE_AMPLITUDE = 0.05f;

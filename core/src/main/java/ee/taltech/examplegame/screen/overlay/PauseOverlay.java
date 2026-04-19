@@ -8,10 +8,17 @@ import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 
 import static ee.taltech.examplegame.component.ButtonComponents.getButton;
+
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import constant.Constants;
 import ee.taltech.examplegame.network.ServerConnection;
 import message.GameLeaveMessage;
 import message.PlayerRespawnMessage;
+import lombok.Getter;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Preferences;
 
+@Getter
 public class PauseOverlay {
 
     private final Stage stage;
@@ -33,6 +40,18 @@ public class PauseOverlay {
         Table table = new Table();
         table.setFillParent(true);
 
+        // Chunk Distance button
+        TextButton[] distanceButtonRef = new TextButton[1];
+        var distanceButton = getButton(20, "Chunk Distance: " + getChunkLoadDistance(), () -> {
+            int currentDist = getChunkLoadDistance() + 1;
+            if (currentDist > 12) currentDist = 1;
+            setChunkLoadDistance(currentDist);
+            if (distanceButtonRef[0] != null) {
+                distanceButtonRef[0].setText("Chunk Distance: " + currentDist);
+            }
+        });
+        distanceButtonRef[0] = distanceButton;
+
         var resumeButton = getButton(20, "Resume", resumeAction::run);
         var respawnButton = getButton(20, "Respawn", () -> {
             ServerConnection.getInstance().getClient().sendTCP(new PlayerRespawnMessage());
@@ -43,13 +62,26 @@ public class PauseOverlay {
             exitAction.run();
         });
 
-        table.add(resumeButton).padBottom(20).width(200);
+        table.add(resumeButton).padBottom(20).width(250);
         table.row();
-        table.add(respawnButton).padBottom(20).width(200);
+        table.add(respawnButton).padBottom(20).width(250);
         table.row();
-        table.add(exitButton).width(200);
+        table.add(distanceButton).padBottom(20).width(250);
+        table.row();
+        table.add(exitButton).width(250);
 
         stage.addActor(table);
+    }
+
+    public static int getChunkLoadDistance() {
+        Preferences prefs = Gdx.app.getPreferences("ExampleGamePrefs");
+        return prefs.getInteger("chunkDist", Constants.CHUNK_LOAD_DISTANCE);
+    }
+
+    private static void setChunkLoadDistance(int distance) {
+        Preferences prefs = Gdx.app.getPreferences("ExampleGamePrefs");
+        prefs.putInteger("chunkDist", distance);
+        prefs.flush();
     }
 
     public void render(float delta) {
@@ -63,9 +95,5 @@ public class PauseOverlay {
 
     public void dispose() {
         stage.dispose();
-    }
-
-    public Stage getStage() {
-        return stage;
     }
 }

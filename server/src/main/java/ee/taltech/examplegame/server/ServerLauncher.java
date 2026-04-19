@@ -17,7 +17,7 @@ public class ServerLauncher {
 
     public static void main(String[] args) {
         try {
-            Server server = new Server();
+            Server server = new Server(16 * 1024 * 1024, 4 * 1024 * 1024);
             // register classes that are sent over the network
             // this must be done for every message that is sent over the network
             registerClasses(server.getKryo());

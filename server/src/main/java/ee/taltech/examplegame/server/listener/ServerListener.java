@@ -5,7 +5,10 @@ import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.minlog.Log;
 
 import ee.taltech.examplegame.server.game.GameInstance;
+import ee.taltech.examplegame.server.game.object.Player;
+import message.ChunkRequestMessage;
 import message.GameJoinMessage;
+import message.GenerateWorldMessage;
 
 
 /**
@@ -83,6 +86,14 @@ public class ServerListener extends Listener {
                     p.getPhysicsState().setVy(0);
                     p.getPhysicsState().setVz(0);
                 });
+        } else if (object instanceof ChunkRequestMessage req && game != null) {
+            game.handleChunkRequest(connection, req.getChunkX(), req.getChunkZ());
+        } else if (object instanceof GenerateWorldMessage && game != null) {
+            // Clear state, kick players
+            for (var conn : game.getPlayers().stream().map(Player::getConnection).toList()) {
+                conn.close();
+            }
+            game.disposeGame();
         }
 
         super.received(connection, object);

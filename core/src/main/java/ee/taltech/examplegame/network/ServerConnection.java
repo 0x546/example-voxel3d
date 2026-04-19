@@ -7,6 +7,7 @@ import static constant.Constants.PORT_TCP;
 import static constant.Constants.PORT_UDP;
 import static constant.Constants.SERVER_IP;
 import static network.KryoHelper.registerClasses;
+import lombok.Getter;
 
 /**
  * Handles the connection to the server.
@@ -16,10 +17,11 @@ import static network.KryoHelper.registerClasses;
  */
 public class ServerConnection {
     private static ServerConnection instance;
-    private final Client client;
+
+    @Getter private final Client client;
 
     private ServerConnection() {
-        client = new Client();
+        client = new Client(16 * 1024 * 1024, 4 * 1024 * 1024);
 
         // register classes that are sent over the network
         registerClasses(client.getKryo());
@@ -43,9 +45,5 @@ public class ServerConnection {
         } catch (Exception e) {
             Gdx.app.error("ServerConnection", "Failed to connect to server", e);
         }
-    }
-
-    public Client getClient() {
-        return client;
     }
 }
