@@ -8,10 +8,11 @@ The application is split into three main modules:
 - **`core`**: Contains client-side LibGDX logic, rendering (`VoxelScreen`, `VoxelMeshBuilder`), and game state management (`GameStateManager`).
 - **`server`**: Headless server application driven by Kryonet. Accesses game logic via listeners such as `ServerListener` and `PlayerMovementListener`.
 - **`shared`**: Shared DTOs, messages, physics logic, and constants. Shared by both `core` and `server`.
+- **`lwjgl3`**: Primary desktop platform using LWJGL3. For running client side of the game.
 
 ## Networking & Kryonet
 
-- **Message Envelopes**: All network payloads should be named `*Message` (e.g., `GameStateMessage`, `PlayerMovementMessage`) and placed in `shared/src/main/java/message/`.
+- **Message Envelopes**: All network payloads should be named `*Message` (e.g., `GameStateMessage`, `PlayerMovementMessage`, `PlayerRespawnMessage`) and placed in `shared/src/main/java/message/`.
 - **Kryo Registration Is Mandatory**: Every new class transmitted over the network MUST be registered in `shared/src/main/java/network/KryoHelper.java` via `kryo.register(MyNewMessage.class)`. Unregistered classes will cause runtime serialization errors.
 - **DTOs**: Data transfer objects (like `PlayerState`) should be placed in `shared/src/main/java/message/dto/`.
 
@@ -25,7 +26,7 @@ The application is split into three main modules:
 
 - **Run the Server**: Execute `./gradlew server:run` or launch `ServerLauncher.java` in the `server` module via IDE.
 - **Run the Client**: Execute `./gradlew lwjgl3:run` or start `Lwjgl3Launcher.java` in the `lwjgl3` module. *Note: When running locally, start the Server before any client.*
-- **Build the Game**: Use `./gradlew lwjgl3:jar` to compile a runnable Java archive (JAR) for distribution.
+- **Build the Game**: Use `./gradlew lwjgl3:jar` to compile a runnable Java archive (JAR) for distribution. The output is in `lwjgl3/build/libs`.
 - **Clean the Build**: Use `./gradlew clean` to clean cached build artifacts.
 
 ## File References
@@ -34,5 +35,3 @@ The application is split into three main modules:
 - **Server Entrypoint**: `server/src/main/java/ee/taltech/examplegame/server/ServerLauncher.java`
 - **Client Connection**: `core/src/main/java/ee/taltech/examplegame/network/ServerConnection.java`
 - **Server Netcode Listeners**: `server/src/main/java/ee/taltech/examplegame/server/listener/ServerListener.java`
-
-

@@ -2,29 +2,24 @@
 
 A [libGDX](https://libgdx.com/) project generated with [gdx-liftoff](https://github.com/libgdx/gdx-liftoff).
 
-An example 2D game for a course in TalTech. Project is intended for newcomers to take inspiration from. The example project is a multiplayer game utilizing LibGDX library for the game and Kryonet for server-side networking.
+This project is a 3D Minecraft-like sample game. It was originally a 2D game that was used as an engine template, but has since been refactored into a 3D voxel-based game. The project is a multiplayer game utilizing the LibGDX library for the game and Kryonet for server-side networking.
 
 [Excalidraw diagram about the structure of this game](https://excalidraw.com/#json=kq2idkeEMGFr-LRx4AVKx,Qv7z8Ks417BKfwIkaTcV5A)
 
-
-## Gameplay description
-
-Currently, the server is configured to run only one game instance at a time, with a maximum capacity of two players.
-
-- On the title screen, press "Start" to begin a new game or "Exit" to close the application.
-- Wait for the second player to join—the game will begin automatically.
-- Both players can move using the WASD keys and shoot bullets using the arrow keys.
-- Each bullet hit decreases the opponent’s lives by 1. The game ends when one player’s lives reach 0.
-- Once the game is over, players can return to the title screen and start a new match.
-
 ## How to run
 
-1. Open the project in an IDE, preferably IntelliJ. While it's possible to run the game from the command line, running multiple clients simultaneously can be tricky.
-2. Launch the server by running `ServerLauncher.java` from the `server` package.
-3. Launch two clients by running `Lwjgl3Launcher.java` from the `lwjgl3` package.
-   - It’s recommended to start the clients by pressing the green triangle at the top of the screen in IntelliJ.
-   - To avoid issues when running multiple clients, select "Current file" in the Run Configuration settings.
-4. Start playing!
+The recommended way to run the game is by using the Gradle wrapper scripts provided in the project.
+
+1.  **Run the server:**
+    ```bash
+    ./gradlew server:run
+    ```
+2.  **Run the client:**
+    ```bash
+    ./gradlew lwjgl3:run
+    ```
+
+Alternatively, you can run the game from your IDE by running the `ServerLauncher.java` and `Lwjgl3Launcher.java` files.
 
 ## Lombok library
 
