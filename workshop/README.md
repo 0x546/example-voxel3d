@@ -1,4 +1,4 @@
-# Voxelgame workshop: Kliendi-Serveri Autoriteet, Protseduraalne Graafika ja AI
+# Voxelgame workshop: Kliendi-Serveri Autoriteet, Protseduuriline Graafika ja AI
 
 Tegemist on 3D Minecraft-stiilis mängu projektiga, milles on osad funktsionaalsused katki või eemaldatud. Sinu ülesanne on need koodi tagasi lisada, parandada serveri turvalisust ning luua tehisintellekti agendi abil uusi visuaalseid lahendusi.
 
@@ -15,7 +15,7 @@ Tegemist on 3D Minecraft-stiilis mängu projektiga, milles on osad funktsionaals
 *   **Võrguprogrammeerimise kuldreegel**: *Server on autoriteet.* Klient on ainult "rumal" kuvaja, mis edastab kasutaja soove. Server peab alati valideerima, kas kasutaja tegevus on tegelikult lubatud.
 
 
-*   **Protseduraalne genereerimine**: Selles projektis pole kasutatud ühtegi pildifaili (`.png`) ega 3D mudelit (`.obj`, `.gltf`). Nii maailm, tekstuurid kui ka mängija mudel luuakse reaalajas koodi (matemaatika ja müra algoritmide) abil. Uuri klasse `PlayerModelGenerator`, `TerrainGenerator` ja `Shaders.java`.
+*   **Protseduuriline genereerimine**: Selles projektis pole kasutatud ühtegi pildifaili (`.png`) ega 3D mudelit (`.obj`, `.gltf`). Nii maailm, tekstuurid kui ka mängija mudel luuakse reaalajas koodi (matemaatika ja müra algoritmide) abil. Uuri klasse `PlayerModelGenerator`, `TerrainGenerator` ja `Shaders.java`.
 
 
 ### 🤖 Koodibaasiga tutvumine ja AI (*Agentic Coding*)
@@ -175,7 +175,7 @@ public synchronized void handleChunkRequest(Connection connection, int chunkX, i
 </details>
 
 ### 6. Puulehtede läbipaistvaks muutmine tehisintellekti abil (Shaders & Meshing)
-Hetkel on puulehed (Leaves) paksud ja läbipaistmatud rohelised plokid. Kuna graafika renderdatakse protseduraalselt koodis, on sinu ülesanne muuta puulehed (`BlockConstants.MAT_LEAVES`) läbipaistvaks (auguliseks). **Soovitame anda see ülesanne lahendamiseks oma AI agendile** (nt Copilot või Antigravity).
+Hetkel on puulehed (Leaves) paksud ja läbipaistmatud rohelised plokid. Kuna graafika renderdatakse protseduuriliselt koodis, on sinu ülesanne muuta puulehed (`BlockConstants.MAT_LEAVES`) läbipaistvaks (auguliseks). **Soovitame anda see ülesanne lahendamiseks oma AI agendile** (nt Copilot või Antigravity).
 
 Sööda AI-le järgnev *prompt*:
 *"Selles Java + LibGDX vokselmängus genereeritakse 3D meshid failis `VoxelMeshBuilder.java` ja värvitakse GLSL-is failis `Shaders.java`. Puulehtede ID on 5 (`BlockConstants.MAT_LEAVES`). Ma soovin muuta puulehed varjutajas auguliseks (alpha cutout / discard) kasutades olemasolevat noise funktsiooni. Mida ma pean nendes kahes failis muutma?"*
@@ -214,17 +214,18 @@ else if (id == 5) { // LEAVES
 ```
 </details>
 
-### 8. LISAARENDUS (Boonus): Biome'id ja reljeefi parandamine AI abil
+### 7. BOONUS: Bioomid ja reljeefi parandamine AI abil
 Kui vaatad maailma maastikku, märkad, et see on ebaloomulikult regulaarne – justkui lõputu "munarest". Põhjus on selles, et failis `TerrainGenerator.java` arvutatakse maastiku kõrgus (`calculateSurfaceHeight`) primitiivsete `Math.sin` ja `Math.cos` funktsioonide abil.
 
-**Sinu ülesanne:** Palu oma AI agendil kirjutada parem maastikugeneratsioon, mis kasutaks näiteks *Perlin noise*'i, et luua erinevaid biome'e (kõrged mäed ja lamedad tasandikud).
+**Sinu ülesanne:** Palu oma AI agendil kirjutada parem maastikugeneratsioon, mis kasutaks näiteks *Perlin noise*'i, et luua erinevaid bioome (kõrged mäed ja lamedad tasandikud).
 
 <details>
-<summary>💡 Vihje (AI Prompt)</summary>
+<summary>💡 Vihje</summary>
+Keerulisema mitme bioomiga süsteemi loomine on täiesti vabatahtlik, aga isegi lihtne müra-põhine kõrguskaardi parandamine muudaks maailma palju huvitavamaks!
 
-Vali `calculateSurfaceHeight` meetod ja kirjuta AI-le lühidalt:
+Näiteks kirjuta AI agendile lühidalt:
 
-"Selle meetodi genereeritud maastik on igav ja korduv. Tee see ilusamaks ja efektiivsemaks, et tekiksid mäed ja orud."
+Meetodi `calculateSurfaceHeight` genereeritud maastik on igav ja korduv. Tee see ilusamaks ja efektiivsemaks, et tekiksid mäed ja orud.
 </details>
 
 <br><br>
