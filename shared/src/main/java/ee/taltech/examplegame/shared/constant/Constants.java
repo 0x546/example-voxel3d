@@ -13,7 +13,7 @@ public class Constants {
 
     // --- physical player constants ---
     public static final float GRAVITY = 25f;
-    public static final float JUMP_VELOCITY = 10f;
+    public static final float JUMP_VELOCITY = 0f;
     public static final float MOVE_SPEED = 24f;
     public static final float DAMPING = 0.9f;
     public static final float WATER_GRAVITY = 6f;        // much slower sinking
