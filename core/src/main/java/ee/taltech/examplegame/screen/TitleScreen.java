@@ -48,12 +48,10 @@ public class TitleScreen extends ScreenAdapter {
 
         continueButton = getButton(20, "Join Game", () -> {
             ServerConnection.getInstance().getClient().sendTCP(new GameJoinMessage());
-            game.setScreen(new VoxelScreen(game));
         });
 
         newGameButton = getButton(20, "New Game", () -> {
             ServerConnection.getInstance().getClient().sendTCP(new GenerateWorldMessage());
-            game.setScreen(new VoxelScreen(game));
         });
 
         var exitButton = getButton(20, "Exit", () -> Gdx.app.exit());
