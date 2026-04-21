@@ -1,10 +1,8 @@
-# example-game
+# Voxelgame
 
 A [libGDX](https://libgdx.com/) project generated with [gdx-liftoff](https://github.com/libgdx/gdx-liftoff).
 
 This project is a 3D Minecraft-like sample game. It was originally a 2D game that was used as an engine template, but has since been refactored into a 3D voxel-based game. The project is a multiplayer game utilizing the LibGDX library for the game and Kryonet for server-side networking.
-
-[Excalidraw diagram about the structure of this game](https://excalidraw.com/#json=kq2idkeEMGFr-LRx4AVKx,Qv7z8Ks417BKfwIkaTcV5A)
 
 ## How to run
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.2.1] - Water Physics & Rendering Enhancements (Unreleased)
+## [1.2.1] - Water Physics & Rendering Enhancements
 
 ### Features
 - **Dynamic Water Flow:** Formulated a chunk-aware water update sub-loop inside the server handling automated 3D fluid expansion according to a priority downwards-vector framework. Added concurrent thread protections for global modifications.
@@ -14,7 +14,7 @@
 ### Fixes
 - **Render Pipeline Layering:** Fixed culling logic hiding opaque models when peering through liquid surfaces. Split the master rendering loop into distinct passes separating opaque geometry from transparent. Incorporated `glDepthMask(false)` guaranteeing subsequent semi-opaque instances won't overwrite local z-buffers hiding other elements (like the Pause Menu).
 
-## [1.2.0] - Creative Mode & New Procedural Blocks (2026-04-19)
+## [1.2.0] - Creative Mode & New Procedural Blocks
 
 ### Features
 - **Creative Mode Block Interaction:** Implemented 3D raycasting for block placement (right-click) and removal (left-click). Includes a highlighted bounding box wireframe around the selected block.
@@ -33,7 +33,7 @@
 - **UV Edge Artifacts:** Resolved Z-fighting and edge flickering on brick/wood by implementing `safeUV` rounding offsets inside the fragment shader. 
 - **Client Prediction Rubber-Banding:** Fixed continuous one-block wide teleports caused by local chunks generating. Enforced a rigid `Math.min(delta, 0.1f)` maximum time-step in `VoxelScreen` ensuring the client doesn't over-predict movements past the server during frame drops.
 
-## [1.1.0] - Multiplayer Chunk Streaming & Creative Flight (2026-04-19)
+## [1.1.0] - Multiplayer Chunk Streaming & Creative Flight
 
 ### Features
 - **Dynamic Chunk-Based World Generation:** Upgraded the single-chunk limitation to a procedural multi-chunk streaming system.
