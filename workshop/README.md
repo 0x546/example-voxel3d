@@ -18,12 +18,11 @@ Tegemist on 3D Minecraft-stiilis mängu projektiga, milles on osad funktsionaals
 *   **Protseduuriline genereerimine**: Selles projektis pole kasutatud ühtegi pildifaili (`.png`) ega 3D mudelit (`.obj`, `.gltf`). Nii maailm, tekstuurid kui ka mängija mudel luuakse reaalajas koodi (matemaatika ja müra algoritmide) abil. Uuri klasse `PlayerModelGenerator`, `TerrainGenerator` ja `Shaders.java`.
 
 
-### 🤖 Koodibaasiga tutvumine ja AI (*Agentic Coding*)
-Kuna tegemist on keskmisest suurema projektiga (sisaldab füüsikat, võrguliiklust, OpenGL varjutajaid ehk *shadereid* ja polügoonide genereerimist), soovitame koodibaasiga tutvumiseks ja koodi kirjutamiseks kasutada **tehisintellekti tööriistu** (nt IDEA Copilot plugin, Google Antigravity või OpenAI Codex).
+### 🤖 Tööriistad: IDE, AI, agent
+See projekt on suur — **kasuta julgelt** IDE otsingut, Copilotit, Cursorit või muud assistenti koodibaasis liikumiseks ja ülesannete lahendamiseks. Iga ülesande juures on lühike **„Alusta siit“** (orienteerumiseks); detailid on vihjetes.
 
-Tänapäeval on standardiks **agentic coding** – arendusviis, kus AI aitab sul iseseisvalt koodibaasis navigeerida.
-*   **Kuidas küsida?** *"Palun selgita, kuidas liigub info klahvivajutusest kliendis (PlayerInputManager) serveri füüsikamootorini."* või *"Kus failis võetakse serveris vastu BlockChangeMessage ja kuidas ma saan sinna mängija koordinaadid juurde panna?"*
-*   **TÄHELEPANU!** AI tööriistad pakuvad tihti kõige laiskemat lahendust. Võrguarhitektuuri osas võib AI teha kriitilisi vigu (näiteks pakkuda valideerimist ainult kliendi poolel). Arhitektuuri ja turvalisuse eest vastutad sina!
+*   **Näide:** *"Kus serveris töödeldakse `BlockChangeMessage` ja kuidas leian sealt mängija?"*
+*   **Turvalisus:** AI võib pakkuda kiiret, aga vale lahendust (nt valideerimine ainult kliendis). Serveri autoriteedi ülesannetes veendu, et reegel kehtib **serveris**.
 
 ---
 
@@ -31,8 +30,12 @@ Tänapäeval on standardiks **agentic coding** – arendusviis, kus AI aitab sul
 
 **NB!** Enne ja pärast iga funktsionaalsuse lisamist pane projekt tööle. Kaitsmisel arvestatakse ainult korrektselt töötavate lahendustega!
 
+> Loe ülesanne → kasuta IDE/AI abi → **„Alusta siit“** kui vajad suunda → vihjed/lahendus, kui jäid hätta.
+
 ### 1. "New Game" või "Join Game" nupule vajutades avaneb mäng
 Hetkel vajutades menüüs nuppe, mäng ei alga – ekraan jääb menüüsse, kuigi taustal serveriga ühendus luuakse.
+
+**Alusta siit:** `core/.../screen/TitleScreen.java`
 
 <details> 
 <summary>💡 Vihje 1</summary> 
@@ -67,10 +70,12 @@ game.setScreen(new VoxelScreen(game));
 ### 2. Gravitatsioon on katki (Mängija ei saa hüpata)
 Tühikut vajutades tegelane ei hüppa. Konstandid on katki läinud.
 
+**Alusta siit:** `shared/.../constant/Constants.java`
+
 <details> 
 <summary>💡 Vihje 1</summary> 
 
-Kõik füüsika ja mängija liikumisega seotud numbrid on defineeritud ühes kindlas klassis `constant` paketis. (Proovi küsida AI käest: *"Kus on defineeritud füüsika konstandid?"*)
+Kõik füüsika ja mängija liikumisega seotud numbrid on defineeritud ühes kindlas klassis `constant` paketis.
 </details>
 
 <details> 
@@ -83,7 +88,9 @@ public static final float JUMP_VELOCITY = 10f;
 </details>
 
 ### 3. "Lendava häkkeri" peatamine (Server-side validation)
-Praegu saab klient vajutada 'F' klahvi ning saata serverile sõnumi `fly = true`. Server usaldab seda ja lubab lennata! Sinu ülesanne on muuta serveri loogikat nii, et lendamine poleks lubatud (ignoreeri kliendi `fly` väärtust).
+Praegu saab klient vajutada 'F' klahvi ning saata serverile sõnumi `fly = true`. Server usaldab seda ja lubab lennata! Sinu ülesanne on muuta serveri loogikat nii, et lendamine poleks lubatud (ignoreeri kliendi `fly` väärtust). Pärast parandust võib klient endiselt *arvata*, et ta lendab, aga server ei luba — see on tahtlik õppetund (vt lahenduse märkust vibreerimise kohta).
+
+**Alusta siit:** `server/.../game/object/Player.java`
 
 <details> 
 <summary>💡 Vihje 1</summary>
@@ -105,10 +112,14 @@ Muuda `Player.java` meetodit `handleInput` nii, et lendamise *boolean* seadistat
 // Kliendi "fly" soovi ignoreeritakse, server on autoriteet!
 inputState.setFly(false); 
 ```
+
+**Märkad pärast parandust vibreerimist (eriti hüppamisel, kui `F` on sisse lülitatud)?** See on oodatud ja õpetlik: klient ennustab endiselt lendamist (`VoxelScreen` kasutab `inputManager.isFly()`), aga server seda ei luba. Mängija **ei saa tegelikult lennata** — autoriteetne positsioon tuleb serverist ja `synchronizeLocalPlayerWithServer` korrigeerib klienti. Vibreerimine näitab seda lahknevust; seda ei pea parandama. Kui tahad sujuvat kuva ilma lennuta, lülita `F` välja.
 </details>
 
 ### 4. Pika käega ehitaja (Kauguse valideerimine)
 Häkkerist klient võiks saata `BlockChangeMessage` sõnumi, et ta ehitab ploki 1000 ühikut eemale. Server peab kontrollima, kas mängija asub ehitatavast plokist piisavalt lähedal (näiteks maksimaalselt 6 ühiku kaugusel).
+
+**Alusta siit:** `server/.../game/GameInstance.java`
 
 <details> 
 <summary>💡 Vihje 1</summary> 
@@ -146,10 +157,40 @@ public synchronized void handleBlockChange(Connection connection, int x, int y, 
 ### 5. Serveri ülekoormamine chunkidega (DoS rünnaku ennetus)
 Pahatahtlik klient võib saata tuhandeid `ChunkRequestMessage` päringuid koodinaatidele, mis asuvad maailma lõpus, koormates serveri üle. Server peab kontrollima, et mängija küsib *chunke* ainult enda lähedalt (nt mitte kaugemalt kui 3 chunki raadiuses).
 
+**Alusta siit:** `server/.../game/GameInstance.java`
+
+Tavaline mäng ei testi seda — klient küsib chunke ainult lähedalt. Vt allpool **Kontrollimine**.
+
 <details> 
 <summary>💡 Vihje 1</summary> 
 
-Vaata meetodit `GameInstance.handleChunkRequest`. Leia uuesti mängija, arvuta mängija koordinaatidest tema hetkene chunk (`px / Chunk.SIZE_X`) ja võrdle seda küsitud chunkiga.
+Vaata meetodit `GameInstance.handleChunkRequest`. Leia mängija ühenduse (`connection`) järgi — sama muster mis ülesandes 4:
+
+```java
+Player player = players.stream()
+        .filter(p -> p.getConnection().equals(connection))
+        .findFirst()
+        .orElse(null);
+```
+
+Seejärel arvuta mängija chunk: `(int) Math.floor(player.getPhysicsState().getX() / Chunk.SIZE_X)` (Z-teljel analoogselt) ja võrdle küsitud `chunkX` / `chunkZ`-ga.
+</details>
+
+<details>
+<summary>🧪 Kontrollimine (ajutine testkood)</summary>
+
+Lisa kliendile **ajutiselt** üks rida (nt `VoxelScreen.render` lõppu või klahvi `T` vajutus), et saata kauge chunk:
+
+```java
+if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.T)) {
+    ServerConnection.getInstance().getClient()
+        .sendUDP(new ChunkRequestMessage(100, 100));
+}
+```
+
+Enne parandust võib server selle genereerida; pärast parandust peaks päring ignoreeritama. Eemalda testkood pärast kontrolli.
+
+Serveri logi või silumine (`handleChunkRequest` alguses `return`) aitab veenduda, et kaitse töötab.
 </details>
 
 <details> 
@@ -174,10 +215,12 @@ public synchronized void handleChunkRequest(Connection connection, int chunkX, i
 ```
 </details>
 
-### 6. Puulehtede läbipaistvaks muutmine tehisintellekti abil (Shaders & Meshing)
-Hetkel on puulehed (Leaves) paksud ja läbipaistmatud rohelised plokid. Kuna graafika renderdatakse protseduuriliselt koodis, on sinu ülesanne muuta puulehed (`BlockConstants.MAT_LEAVES`) läbipaistvaks (auguliseks). **Soovitame anda see ülesanne lahendamiseks oma AI agendile** (nt Copilot või Antigravity).
+### 6. Puulehtede läbipaistvaks muutmine (Shaders & Meshing)
+Hetkel on puulehed (Leaves) paksud ja läbipaistmatud rohelised plokid. Kuna graafika renderdatakse protseduuriliselt koodis, on sinu ülesanne muuta puulehed (`BlockConstants.MAT_LEAVES`) läbipaistvaks (auguliseks).
 
-Sööda AI-le järgnev *prompt*:
+**Alusta siit:** `core/.../game/` (mesh ja shader)
+
+Hea lähtepunkt AI-le — *prompt*:
 *"Selles Java + LibGDX vokselmängus genereeritakse 3D meshid failis `VoxelMeshBuilder.java` ja värvitakse GLSL-is failis `Shaders.java`. Puulehtede ID on 5 (`BlockConstants.MAT_LEAVES`). Ma soovin muuta puulehed varjutajas auguliseks (alpha cutout / discard) kasutades olemasolevat noise funktsiooni. Mida ma pean nendes kahes failis muutma?"*
 
 <details> 
@@ -214,10 +257,12 @@ else if (id == 5) { // LEAVES
 ```
 </details>
 
-### 7. BOONUS: Bioomid ja reljeefi parandamine AI abil
+### 7. BOONUS: Bioomid ja reljeefi parandamine
 Kui vaatad maailma maastikku, märkad, et see on ebaloomulikult regulaarne – justkui lõputu "munarest". Põhjus on selles, et failis `TerrainGenerator.java` arvutatakse maastiku kõrgus (`calculateSurfaceHeight`) primitiivsete `Math.sin` ja `Math.cos` funktsioonide abil.
 
-**Sinu ülesanne:** Palu oma AI agendil kirjutada parem maastikugeneratsioon, mis kasutaks näiteks *Perlin noise*'i, et luua erinevaid bioome (kõrged mäed ja lamedad tasandikud).
+**Alusta siit:** `shared/.../game/TerrainGenerator.java`
+
+**Sinu ülesanne:** Kirjuta parem maastikugeneratsioon (nt *Perlin noise* bioomide jaoks). Anna see mugavalt AI agendile.
 
 <details>
 <summary>💡 Vihje</summary>
