@@ -91,11 +91,7 @@ public class GameInstance extends Thread {
         world.setBlock(x, y, z, blockType);
 
         BlockChangeMessage msg = new BlockChangeMessage(x, y, z, blockType);
-        connections.forEach(conn -> {
-            if (conn != connection) {
-                conn.sendTCP(msg);
-            }
-        });
+        connections.forEach(conn -> conn.sendTCP(msg));
     }
 
     /**

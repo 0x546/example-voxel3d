@@ -19,10 +19,9 @@ Tegemist on 3D Minecraft-stiilis mängu projektiga, milles on osad funktsionaals
 
 
 ### 🤖 Tööriistad: IDE, AI, agent
-See projekt on suur — **kasuta julgelt** IDE otsingut, Copilotit, Cursorit või muud assistenti koodibaasis liikumiseks ja ülesannete lahendamiseks. Iga ülesande juures on lühike **„Alusta siit“** (orienteerumiseks); detailid on vihjetes.
+See projekt on suur — **kasuta julgelt** IDE otsingut, Copilotit, Cursorit või muud assistenti koodibaasis liikumiseks ja ülesannete lahendamiseks. Iga ülesande juures on lühike **„Alusta siit“** (orienteerumiseks); täpsemad detailid on vihjetes.
 
 *   **Näide:** *"Kus serveris töödeldakse `BlockChangeMessage` ja kuidas leian sealt mängija?"*
-*   **Turvalisus:** AI võib pakkuda kiiret, aga vale lahendust (nt valideerimine ainult kliendis). Serveri autoriteedi ülesannetes veendu, et reegel kehtib **serveris**.
 
 ---
 
@@ -88,7 +87,7 @@ public static final float JUMP_VELOCITY = 10f;
 </details>
 
 ### 3. "Lendava häkkeri" peatamine (Server-side validation)
-Praegu saab klient vajutada 'F' klahvi ning saata serverile sõnumi `fly = true`. Server usaldab seda ja lubab lennata! Sinu ülesanne on muuta serveri loogikat nii, et lendamine poleks lubatud (ignoreeri kliendi `fly` väärtust). Pärast parandust võib klient endiselt *arvata*, et ta lendab, aga server ei luba — see on tahtlik õppetund (vt lahenduse märkust vibreerimise kohta).
+Praegu saab klient vajutada 'F' klahvi ning saata serverile sõnumi `fly = true`. Server usaldab seda ja lubab lennata! Sinu ülesanne on muuta serveri loogikat nii, et lendamine poleks lubatud (ignoreeri kliendi `fly` väärtust). Pärast parandust võib klient endiselt *arvata*, et ta lendab, aga tegelikult server ei luba. 
 
 **Alusta siit:** `server/.../game/object/Player.java`
 
@@ -113,11 +112,19 @@ Muuda `Player.java` meetodit `handleInput` nii, et lendamise *boolean* seadistat
 inputState.setFly(false); 
 ```
 
-**Märkad pärast parandust vibreerimist (eriti hüppamisel, kui `F` on sisse lülitatud)?** See on oodatud ja õpetlik: klient ennustab endiselt lendamist (`VoxelScreen` kasutab `inputManager.isFly()`), aga server seda ei luba. Mängija **ei saa tegelikult lennata** — autoriteetne positsioon tuleb serverist ja `synchronizeLocalPlayerWithServer` korrigeerib klienti. Vibreerimine näitab seda lahknevust; seda ei pea parandama. Kui tahad sujuvat kuva ilma lennuta, lülita `F` välja.
+**Kas märkad pärast parandust vibreerimist, kui `F` on kliendis sisse lülitatud?**
+
+See on oodatud ja õpetlik: klient ennustab endiselt lendamist (`VoxelScreen` kasutab `inputManager.isFly()`), aga server seda ei luba. Mängija nüüd **ei saa tegelikult lennata** — autoriteetne positsioon tuleb serverist ja `synchronizeLocalPlayerWithServer` korrigeerib klienti. Vibreerimine näitab seda lahknevust. Kui tahad sujuvat kuva ilma lennuta, lülita `F` välja.
 </details>
+
+❗Pärast ülesande lahendamist taasta lendamise esialgne seis, järgmistes ülesannetes on lendamisoskus kindlasti kasuks!
 
 ### 4. Pika käega ehitaja (Kauguse valideerimine)
 Häkkerist klient võiks saata `BlockChangeMessage` sõnumi, et ta ehitab ploki 1000 ühikut eemale. Server peab kontrollima, kas mängija asub ehitatavast plokist piisavalt lähedal (näiteks maksimaalselt 6 ühiku kaugusel).
+
+Vajuta mängus olles klahvi **R**. See käivitab kliendis näidiskoodi, mis proovib ehitada plokkidest ringi mängijast 15 ühiku kaugusele.
+
+Enne parandust peaksid nägema, et kaugele tekivad plokid; pärast parandust peaks server need ehituspäringud ignoreerima, kuna need on kaugemal kui lubatud piir (6 ühikut).
 
 **Alusta siit:** `server/.../game/GameInstance.java`
 
@@ -155,11 +162,15 @@ public synchronized void handleBlockChange(Connection connection, int x, int y, 
 </details>
 
 ### 5. Serveri ülekoormamine chunkidega (DoS rünnaku ennetus)
-Pahatahtlik klient võib saata tuhandeid `ChunkRequestMessage` päringuid koodinaatidele, mis asuvad maailma lõpus, koormates serveri üle. Server peab kontrollima, et mängija küsib *chunke* ainult enda lähedalt (nt mitte kaugemalt kui 3 chunki raadiuses).
+Pahatahtlik klient võib saata tuhandeid `ChunkRequestMessage` päringuid koordinaatidele, mis asuvad maailma lõpus, koormates seeläbi serveri üle. Teeme nii, et server kontrollib, et mängija küsiks *chunke* ainult enda lähedalt (nt mitte kaugemalt kui 5 chunki raadiuses).
+
+Vajuta mängus olles klahvi **T**. See käivitab kliendis näidiskoodi, mis püüab serverilt küsida korraga tervet "ringi" chunke, mis asuvad mängijast 14 chunki kaugusel.
+
+Enne parandust hakkab server neid kaugeid chunke genereerima, mis koormab serverit, sest tegelikult ei tohiks klient nii kaugeid chunke küsida.
+
+Pärast parandust peaks server need päringud ignoreerima.
 
 **Alusta siit:** `server/.../game/GameInstance.java`
-
-Tavaline mäng ei testi seda — klient küsib chunke ainult lähedalt. Vt allpool **Kontrollimine**.
 
 <details> 
 <summary>💡 Vihje 1</summary> 
@@ -176,23 +187,6 @@ Player player = players.stream()
 Seejärel arvuta mängija chunk: `(int) Math.floor(player.getPhysicsState().getX() / Chunk.SIZE_X)` (Z-teljel analoogselt) ja võrdle küsitud `chunkX` / `chunkZ`-ga.
 </details>
 
-<details>
-<summary>🧪 Kontrollimine (ajutine testkood)</summary>
-
-Lisa kliendile **ajutiselt** üks rida (nt `VoxelScreen.render` lõppu või klahvi `T` vajutus), et saata kauge chunk:
-
-```java
-if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.T)) {
-    ServerConnection.getInstance().getClient()
-        .sendUDP(new ChunkRequestMessage(100, 100));
-}
-```
-
-Enne parandust võib server selle genereerida; pärast parandust peaks päring ignoreeritama. Eemalda testkood pärast kontrolli.
-
-Serveri logi või silumine (`handleChunkRequest` alguses `return`) aitab veenduda, et kaitse töötab.
-</details>
-
 <details> 
 <summary>🛠 Lahendus</summary> 
 
@@ -207,7 +201,7 @@ public synchronized void handleChunkRequest(Connection connection, int chunkX, i
         int pCx = (int) Math.floor(player.getPhysicsState().getX() / Chunk.SIZE_X);
         int pCz = (int) Math.floor(player.getPhysicsState().getZ() / Chunk.SIZE_Z);
 
-        if (Math.abs(pCx - chunkX) > 3 || Math.abs(pCz - chunkZ) > 3) {
+        if (Math.abs(pCx - chunkX) > 5 || Math.abs(pCz - chunkZ) > 5) {
             return; // Ignoreeri ebaseaduslikku päringut
         }
     }

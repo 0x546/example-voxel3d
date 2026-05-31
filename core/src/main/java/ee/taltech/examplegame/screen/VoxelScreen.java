@@ -175,6 +175,47 @@ public class VoxelScreen extends ScreenAdapter {
             if (inputManager.isActionPressed()) {
                 Gdx.input.setCursorCatched(true);
             }
+
+            // Debug: fill blocks around player when R is pressed
+            if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+                int centerBx = (int) Math.floor(physicsState.getX());
+                int by = (int) Math.floor(physicsState.getY());
+                int centerBz = (int) Math.floor(physicsState.getZ());
+                int rDist = 15;
+
+                for (int i = -rDist; i <= rDist; i++) {
+                    ServerConnection.getInstance().getClient().sendTCP(
+                        new BlockChangeMessage(centerBx + i, by, centerBz + rDist, BlockConstants.MAT_BRICK));
+                    ServerConnection.getInstance().getClient().sendTCP(
+                        new BlockChangeMessage(centerBx + i, by, centerBz - rDist, BlockConstants.MAT_BRICK));
+                    if (i > -rDist && i < rDist) {
+                        ServerConnection.getInstance().getClient().sendTCP(
+                            new BlockChangeMessage(centerBx - rDist, by, centerBz + i, BlockConstants.MAT_BRICK));
+                        ServerConnection.getInstance().getClient().sendTCP(
+                            new BlockChangeMessage(centerBx + rDist, by, centerBz + i, BlockConstants.MAT_BRICK));
+                    }
+                }
+            }
+
+            // Debug: force request chunks around player when T is pressed
+            if (Gdx.input.isKeyJustPressed(Input.Keys.T)) {
+                int dist = 14;
+                int playerChunkX = (int) Math.floor(physicsState.getX() / Chunk.SIZE_X);
+                int playerChunkZ = (int) Math.floor(physicsState.getZ() / Chunk.SIZE_Z);
+                for (int i = -dist; i <= dist; i++) {
+                    ServerConnection.getInstance().getClient().sendUDP(
+                        new ChunkRequestMessage(playerChunkX + i, playerChunkZ + dist));
+                    ServerConnection.getInstance().getClient().sendUDP(
+                        new ChunkRequestMessage(playerChunkX + i, playerChunkZ - dist));
+                    if (i > -dist && i < dist) {
+                        ServerConnection.getInstance().getClient().sendUDP(
+                            new ChunkRequestMessage(playerChunkX - dist, playerChunkZ + i));
+                        ServerConnection.getInstance().getClient().sendUDP(
+                            new ChunkRequestMessage(playerChunkX + dist, playerChunkZ + i));
+                    }
+                }
+            }
+
         } else {
             // keep camera moving with viewport changes even when paused
             camera.update();

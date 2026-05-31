@@ -9,7 +9,7 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class Chunk {
     public static final int SIZE_X = 16;
-    public static final int SIZE_Y = 64;
+    public static final int SIZE_Y = 256;
     public static final int SIZE_Z = 16;
 
     private int chunkX;
