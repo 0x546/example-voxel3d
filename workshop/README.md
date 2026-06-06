@@ -129,19 +129,13 @@ Enne parandust peaksid nägema, et kaugele tekivad plokid; pärast parandust pea
 **Alusta siit:** `server/.../game/GameInstance.java`
 
 <details> 
-<summary>💡 Vihje 1</summary> 
+<summary>💡 Vihje 1 (Mängija tuvastamine)</summary> 
 
-Serveris tegeleb plokkide muutmisega `GameInstance.handleBlockChange(Connection connection, int x, int y, int z, int blockType)`. Mängija leidmiseks kasuta samas klassis olevat abimeetodit `getPlayerByConnection(connection)`.
+Serveris tegeleb plokkide muutmisega `GameInstance.handleBlockChange(int x, int y, int z, int blockType)`. Mängija leidmiseks kasuta samas klassis olevat abimeetodit `getPlayerByConnection(connection)`.
 </details>
 
 <details> 
-<summary>💡 Vihje 2</summary> 
-
-NB! Server ise muudab ka plokke (näiteks voolav vesi või langev liiv). Sellistel puhkudel on `connection` väärtus `null`. Ära unusta seda kontrollida!
-</details>
-
-<details> 
-<summary>💡 Vihje 3 (Mängija asukoht ja geomeetria)</summary> 
+<summary>💡 Vihje 2 (Mängija asukoht ja geomeetria)</summary> 
 
 Mängija koordinaadid saad kätte läbi tema füüsikaoleku: `player.getPhysicsState().getX()` (analoogselt Y ja Z).
 Kahe punkti vahelise 3D-kauguse arvutamiseks kasuta klassikalist valemit: d = √((x₂ - x₁)² + (y₂ - y₁)² + (z₂ - z₁)²). Javas on selleks abiks `Math.sqrt()` ja `Math.pow()`.
@@ -152,7 +146,7 @@ Kahe punkti vahelise 3D-kauguse arvutamiseks kasuta klassikalist valemit: d = �
 
 Leia mängija, arvuta 3D distants mängija koordinaatide (`physicsState`) ja ploki koordinaatide vahel ning ignoreeri ehitust (tee `return;`), kui vahemaa on liiga suur.
 ```java
-public synchronized void handleBlockChange(Connection connection, int x, int y, int z, int blockType) {
+public synchronized void handleBlockChange(int x, int y, int z, int blockType) {
     if (connection != null) {
         Player player = getPlayerByConnection(connection);
 
