@@ -131,20 +131,30 @@ Enne parandust peaksid nägema, et kaugele tekivad plokid; pärast parandust pea
 <details> 
 <summary>💡 Vihje 1</summary> 
 
-Serveris tegeleb plokkide muutmisega `GameInstance.handleBlockChange(Connection connection, int x, int y, int z, int blockType)`.
+Serveris tegeleb plokkide muutmisega `GameInstance.handleBlockChange(Connection connection, int x, int y, int z, int blockType)`. Mängija leidmiseks kasuta samas klassis olevat abimeetodit `getPlayerByConnection(connection)`.
+</details>
+
+<details> 
+<summary>💡 Vihje 2</summary> 
+
+NB! Server ise muudab ka plokke (näiteks voolav vesi või langev liiv). Sellistel puhkudel on `connection` väärtus `null`. Ära unusta seda kontrollida!
+</details>
+
+<details> 
+<summary>💡 Vihje 3 (Mängija asukoht ja geomeetria)</summary> 
+
+Mängija koordinaadid saad kätte läbi tema füüsikaoleku: `player.getPhysicsState().getX()` (analoogselt Y ja Z).
+Kahe punkti vahelise 3D-kauguse arvutamiseks kasuta klassikalist valemit: d = √((x₂ - x₁)² + (y₂ - y₁)² + (z₂ - z₁)²). Javas on selleks abiks `Math.sqrt()` ja `Math.pow()`.
 </details>
 
 <details> 
 <summary>🛠 Lahendus</summary> 
 
-Leia `players` listist õige mängija, arvuta 3D distants mängija koordinaatide (`physicsState`) ja ploki koordinaatide vahel (`Math.sqrt(...)`) ning ignoreeri ehitust (tee `return;`), kui vahemaa on liiga suur.
+Leia mängija, arvuta 3D distants mängija koordinaatide (`physicsState`) ja ploki koordinaatide vahel ning ignoreeri ehitust (tee `return;`), kui vahemaa on liiga suur.
 ```java
 public synchronized void handleBlockChange(Connection connection, int x, int y, int z, int blockType) {
     if (connection != null) {
-        Player player = players.stream()
-                .filter(p -> p.getConnection().equals(connection))
-                .findFirst()
-                .orElse(null);
+        Player player = getPlayerByConnection(connection);
 
         if (player != null) {
             float px = player.getPhysicsState().getX();
@@ -173,18 +183,25 @@ Pärast parandust peaks server need päringud ignoreerima.
 **Alusta siit:** `server/.../game/GameInstance.java`
 
 <details> 
-<summary>💡 Vihje 1</summary> 
+<summary>💡 Vihje 1 (Mängija tuvastamine)</summary> 
 
-Vaata meetodit `GameInstance.handleChunkRequest`. Leia mängija ühenduse (`connection`) järgi — sama muster mis ülesandes 4:
+Vaata meetodit `GameInstance.handleChunkRequest`. Sarnaselt eelmise ülesandega kasuta mängija tuvastamiseks ühenduse järgi abimeetodit `getPlayerByConnection(connection)`.
+</details>
 
-```java
-Player player = players.stream()
-        .filter(p -> p.getConnection().equals(connection))
-        .findFirst()
-        .orElse(null);
-```
+<details> 
+<summary>💡 Vihje 2 (Koordinaatide teisendamine)</summary> 
 
-Seejärel arvuta mängija chunk: `(int) Math.floor(player.getPhysicsState().getX() / Chunk.SIZE_X)` (Z-teljel analoogselt) ja võrdle küsitud `chunkX` / `chunkZ`-ga.
+Mängija asukoht (`player.getPhysicsState().getX()` ja `getZ()`) on antud maailma koordinaatides, kuid päring saabub chunk'i koordinaatides (`chunkX` ja `chunkZ`).
+
+Mängija asukoha teisendamiseks chunk'i koordinaatideks jaga see chunk'i suurusega (`Chunk.SIZE_X` ja `Chunk.SIZE_Z`) ning ümarda tulemus alla lähima täisarvuni kasutades `Math.floor` meetodit. Ära unusta tulemust tüübiteisendada `int` tüübiks.
+</details>
+
+<details> 
+<summary>💡 Vihje 3 (Lubatud vahemaa kontroll)</summary> 
+
+Nüüd pead võrdlema mängija praegust chunk'i (`pCx`, `pCz`) ja küsitud chunk'i (`chunkX`, `chunkZ`).
+
+Kuna mängija saab liikuda igas suunas, kasuta kahe koordinaadi erinevuse leidmiseks absoluutväärtuse funktsiooni `Math.abs()`. Kui erinevus X- või Z-teljel on suurem kui 5, tähendab see, et klient küsib liiga kaugeid chunke ja päringut tuleks ignoreerida (`return;`).
 </details>
 
 <details> 
@@ -192,10 +209,7 @@ Seejärel arvuta mängija chunk: `(int) Math.floor(player.getPhysicsState().getX
 
 ```java
 public synchronized void handleChunkRequest(Connection connection, int chunkX, int chunkZ) {
-    Player player = players.stream()
-            .filter(p -> p.getConnection().equals(connection))
-            .findFirst()
-            .orElse(null);
+    Player player = getPlayerByConnection(connection);
 
     if (player != null) {
         int pCx = (int) Math.floor(player.getPhysicsState().getX() / Chunk.SIZE_X);

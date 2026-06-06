@@ -87,11 +87,18 @@ public class GameInstance extends Thread {
         connection.sendTCP(new ChunkDataMessage(chunk));
     }
 
-    public synchronized void handleBlockChange(Connection connection, int x, int y, int z, int blockType) {
+    public synchronized void handleBlockChange(int x, int y, int z, int blockType) {
         world.setBlock(x, y, z, blockType);
 
         BlockChangeMessage msg = new BlockChangeMessage(x, y, z, blockType);
         connections.forEach(conn -> conn.sendTCP(msg));
+    }
+
+    private Player getPlayerByConnection(Connection connection) {
+        return players.stream()
+            .filter(p -> p.getConnection().equals(connection))
+            .findFirst()
+            .orElse(null);
     }
 
     /**
@@ -222,7 +229,7 @@ public class GameInstance extends Thread {
         });
 
         for (BlockChange change : changes) {
-            handleBlockChange(null, change.x, change.y, change.z, BlockConstants.MAT_WATER);
+            handleBlockChange(change.x, change.y, change.z, BlockConstants.MAT_WATER);
         }
     }
 
@@ -243,7 +250,7 @@ public class GameInstance extends Thread {
         });
 
         for (BlockChange change : changes) {
-            handleBlockChange(null, change.x, change.y, change.z, change.type);
+            handleBlockChange(change.x, change.y, change.z, change.type);
         }
     }
 

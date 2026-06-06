@@ -78,7 +78,7 @@ public class ServerListener extends Listener {
         } else if (object instanceof ChunkRequestMessage req) {
             handleChunkRequest(connection, req);
         } else if (object instanceof BlockChangeMessage bcm) {
-            handleBlockChange(connection, bcm);
+            handleBlockChange(bcm);
         } else if (object instanceof GenerateWorldMessage
             && handleGenerateWorld(connection)) {
             return;
@@ -130,9 +130,9 @@ public class ServerListener extends Listener {
         }
     }
 
-    private void handleBlockChange(Connection connection, BlockChangeMessage bcm) {
+    private void handleBlockChange(BlockChangeMessage bcm) {
         if (game != null) {
-            game.handleBlockChange(connection, bcm.getX(), bcm.getY(), bcm.getZ(), bcm.getBlockType());
+            game.handleBlockChange(bcm.getX(), bcm.getY(), bcm.getZ(), bcm.getBlockType());
         }
     }
 
