@@ -131,7 +131,7 @@ Enne parandust peaksid nägema, et kaugele tekivad plokid; pärast parandust pea
 <details> 
 <summary>💡 Vihje 1 (Mängija tuvastamine)</summary> 
 
-Serveris tegeleb plokkide muutmisega `GameInstance.handleBlockChange(int x, int y, int z, int blockType)`. Mängija leidmiseks kasuta samas klassis olevat abimeetodit `getPlayerByConnection(connection)`.
+Serveris tegeleb plokkide muutmisega `GameInstance.handleBlockChange(Connection connection, int x, int y, int z, int blockType)`. Mängija leidmiseks kasuta samas klassis olevat abimeetodit `getPlayerByConnection(connection)`.
 </details>
 
 <details> 
@@ -146,7 +146,7 @@ Kahe punkti vahelise 3D-kauguse arvutamiseks kasuta klassikalist valemit: d = �
 
 Leia mängija, arvuta 3D distants mängija koordinaatide (`physicsState`) ja ploki koordinaatide vahel ning ignoreeri ehitust (tee `return;`), kui vahemaa on liiga suur.
 ```java
-public synchronized void handleBlockChange(int x, int y, int z, int blockType) {
+public synchronized void handleBlockChange(Connection connection, int x, int y, int z, int blockType) {
     if (connection != null) {
         Player player = getPlayerByConnection(connection);
 
